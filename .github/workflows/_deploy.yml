@@ -61,6 +61,8 @@ jobs:
             # production は --prod / staging は Preview デプロイ + 固定エイリアス
             VERCEL_ENV: ${{ inputs.environment == 'production' && 'production' || 'preview' }}
             PROD_FLAG: ${{ inputs.environment == 'production' && '--prod' || '' }}
+            # run 内で参照する入力値は env 経由にする（式展開によるシェル注入防止）
+            DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
@@ -78,12 +80,14 @@ jobs:
                   # 将来の CLI 出力変更に備えて最終行だけを取る（防御的）
                   url=$(npx --yes vercel deploy --prebuilt ${PROD_FLAG:+"$PROD_FLAG"} --token="$VERCEL_TOKEN" | tail -n1)
                   echo "url=$url" >> "$GITHUB_OUTPUT"
-                  echo "### service-front (${{ inputs.environment }}): $url" >> "$GITHUB_STEP_SUMMARY"
+                  echo "### service-front (${DEPLOY_ENVIRONMENT}): $url" >> "$GITHUB_STEP_SUMMARY"
             - name: Set staging alias
               if: ${{ inputs.environment == 'staging' }}
               env:
                   STG_ALIAS: ${{ secrets.STG_ALIAS_SERVICE_FRONT }}
-              run: npx --yes vercel alias set "${{ steps.deploy.outputs.url }}" "$STG_ALIAS" --token="$VERCEL_TOKEN"
+                  # step 出力は run に直接展開せず env 経由で参照する（式展開によるシェル注入防止）
+                  DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+              run: npx --yes vercel alias set "$DEPLOY_URL" "$STG_ALIAS" --token="$VERCEL_TOKEN"
 
     # ------------------------------------------------------------
     # 3. admin-front → Vercel（service-front と同型・並列実行）
@@ -99,6 +103,8 @@ jobs:
             VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_ADMIN_FRONT }}
             VERCEL_ENV: ${{ inputs.environment == 'production' && 'production' || 'preview' }}
             PROD_FLAG: ${{ inputs.environment == 'production' && '--prod' || '' }}
+            # run 内で参照する入力値は env 経由にする（式展開によるシェル注入防止）
+            DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
@@ -116,9 +122,11 @@ jobs:
                   # 将来の CLI 出力変更に備えて最終行だけを取る（防御的）
                   url=$(npx --yes vercel deploy --prebuilt ${PROD_FLAG:+"$PROD_FLAG"} --token="$VERCEL_TOKEN" | tail -n1)
                   echo "url=$url" >> "$GITHUB_OUTPUT"
-                  echo "### admin-front (${{ inputs.environment }}): $url" >> "$GITHUB_STEP_SUMMARY"
+                  echo "### admin-front (${DEPLOY_ENVIRONMENT}): $url" >> "$GITHUB_STEP_SUMMARY"
             - name: Set staging alias
               if: ${{ inputs.environment == 'staging' }}
               env:
                   STG_ALIAS: ${{ secrets.STG_ALIAS_ADMIN_FRONT }}
-              run: npx --yes vercel alias set "${{ steps.deploy.outputs.url }}" "$STG_ALIAS" --token="$VERCEL_TOKEN"
+                  # step 出力は run に直接展開せず env 経由で参照する（式展開によるシェル注入防止）
+                  DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+              run: npx --yes vercel alias set "$DEPLOY_URL" "$STG_ALIAS" --token="$VERCEL_TOKEN"
