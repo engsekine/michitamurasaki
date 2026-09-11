@@ -8,7 +8,14 @@ export interface ServerDiveRow {
     [key: string]: unknown;
 }
 
+/**
+ * dives の 1 ページ取得。
+ * なぜ userId を受けるか: RLS は「本人のログ」に加えて「他人の公開ログ」も返す
+ * （20260630100200 の公開読み取りポリシー）ため、RLS 任せでは他人のログが
+ * 本人のキャッシュに混入する。取得側で必ず user_id を絞り込む。
+ */
 export type FetchDivesPage = (
+    userId: string,
     cursor: { diveDate: string; id: string } | null,
     limit: number,
 ) => Promise<ServerDiveRow[]>;
@@ -28,7 +35,7 @@ export const runFullSync = async (
     const all: ServerDiveRow[] = [];
     let cursor: { diveDate: string; id: string } | null = null;
     for (;;) {
-        const page = await fetchPage(cursor, pageSize);
+        const page = await fetchPage(userId, cursor, pageSize);
         all.push(...page);
         if (page.length < pageSize) break;
         const last = page[page.length - 1];

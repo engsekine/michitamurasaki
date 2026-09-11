@@ -41,8 +41,10 @@ describe('runFullSync（全件同期 / FR-011-012・SC-004）', () => {
         const result = await runFullSync(driver, USER_ID, fetchPage, NOW, 2);
 
         expect(result.count).toBe(3);
+        // 取得は必ず本人の userId で絞る（他人の公開ログを混入させない）
+        expect(fetchPage).toHaveBeenNthCalledWith(1, USER_ID, null, 2);
         // 2 ページ目のカーソルは 1 ページ目の最終行
-        expect(fetchPage).toHaveBeenNthCalledWith(2, { diveDate: '2026-07-02', id: 'd2' }, 2);
+        expect(fetchPage).toHaveBeenNthCalledWith(2, USER_ID, { diveDate: '2026-07-02', id: 'd2' }, 2);
         expect(await getDiveById(driver, USER_ID, 'stale')).toBeNull();
         expect(await getDiveById(driver, USER_ID, 'd1')).not.toBeNull();
         expect(await getLastFullSyncAt(driver, USER_ID)).toBe(NOW);
