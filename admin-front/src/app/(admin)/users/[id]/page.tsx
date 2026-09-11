@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 
+import { requireAdmin } from '@/features/admin-auth';
 import { getUserDetail, getUserMfaStatus } from '@/features/users-admin';
 import { RemoveMfaButton } from '@/features/users-admin/components/client/RemoveMfaButton';
 import { generatePageMetadata } from '@/shared/config/metadata';
@@ -14,9 +15,11 @@ const GENDER_LABEL: Record<string, string> = { male: '男性', female: '女性',
 
 export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    /** 両クエリは独立（それぞれ requireAdmin を通る）ため並列で取得する */
-    const [view, mfaStatus] = await Promise.all([getUserDetail(id), getUserMfaStatus(id)]);
+    /** 3 つは独立（クエリはそれぞれ requireAdmin を通る）ため並列で取得する */
+    const [admin, view, mfaStatus] = await Promise.all([requireAdmin(), getUserDetail(id), getUserMfaStatus(id)]);
     if (!view) notFound();
+    /** 2 要素認証の解除は superadmin 限定（Server Action 側でも同じ判定を行う） */
+    const canRemoveMfa = admin.role === 'superadmin';
 
     const { detail, diveCount } = view;
 
@@ -47,12 +50,19 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                     2 要素認証
                 </h2>
                 {mfaStatus.enabled ? (
-                    <>
+                    canRemoveMfa ? (
+                        <>
+                            <p className="text-muted-foreground text-sm">
+                                このユーザーは 2
+                                要素認証（電話番号）が有効です。電話紛失時などは下のボタンで解除できます。
+                            </p>
+                            <RemoveMfaButton userId={detail.user_id} />
+                        </>
+                    ) : (
                         <p className="text-muted-foreground text-sm">
-                            このユーザーは 2 要素認証（電話番号）が有効です。電話紛失時などは下のボタンで解除できます。
+                            このユーザーは 2 要素認証（電話番号）が有効です。解除は上位管理者に依頼してください。
                         </p>
-                        <RemoveMfaButton userId={detail.user_id} />
-                    </>
+                    )
                 ) : (
                     <p className="text-muted-foreground text-sm">このユーザーは 2 要素認証を有効化していません。</p>
                 )}
