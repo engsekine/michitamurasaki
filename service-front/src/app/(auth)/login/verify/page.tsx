@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { getMfaStatus, MfaChallengeForm } from '@/features/mfa';
-import { isMfaChallengePending } from '@/features/mfa/lib/aalGuard';
+import { getVerifiedAalLevels, isMfaChallengePending } from '@/features/mfa/lib/aalGuard';
 import { Heading } from '@/shared/components/typography/Heading';
 import { generatePageMetadata } from '@/shared/config/metadata';
 import { createClient } from '@/shared/lib/supabase/server';
@@ -28,11 +28,11 @@ export default async function MfaVerifyPage() {
     } = await supabase.auth.getUser();
     if (!user) redirect('/login');
 
-    const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    /** AAL 取得失敗はログに残す。失敗時も TOP へ流し、(authenticated)/layout の再チェックに委ねる */
-    if (aalError) console.error('[MfaVerifyPage] AAL の取得に失敗しました:', aalError);
-    const pending = isMfaChallengePending(aal ? { currentLevel: aal.currentLevel, nextLevel: aal.nextLevel } : null);
-    /** 2 段階目が不要（未有効化 or 既に AAL2）なら通常のトップへ */
+    /**
+     * 判定は検証済みの user と署名検証済みクレームから行う（cookie 改ざん耐性）。
+     * 2 段階目が不要（未有効化 or 既に AAL2）なら通常のトップへ
+     */
+    const pending = isMfaChallengePending(await getVerifiedAalLevels(supabase, { user }));
     if (!pending) redirect('/');
 
     const status = await getMfaStatus();

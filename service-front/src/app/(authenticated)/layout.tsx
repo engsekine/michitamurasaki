@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { DailyBonusModal } from '@/features/credits/components/client/DailyBonusModal';
 import { getCreditBalance } from '@/features/credits/server/queries';
-import { isMfaChallengePending } from '@/features/mfa/lib/aalGuard';
+import { getVerifiedAalLevels, isMfaChallengePending } from '@/features/mfa/lib/aalGuard';
 import { createClient } from '@/shared/lib/supabase/server';
 
 /**
@@ -45,15 +45,13 @@ export default async function AuthenticatedLayout({
      * 保護ルートに入れず 2 段階目チャレンジへ誘導する。
      * /login/verify は本レイアウト配下ではないためループしない。
      * 未有効化ユーザーは AAL1→AAL1 のため素通りする（体験不変 / FR-015）。
+     *
+     * 判定は検証済みの user（getUser）と署名検証済みクレーム（getClaims）から行う。
+     * cookie 内の user.factors を根拠にする getAuthenticatorAssuranceLevel() は
+     * cookie 改ざんで 2 段階目を回避できたため使わない。
+     * 未有効化ユーザーはクレーム取得に行かないため、AAL 判定の障害で全員がロックアウトされることはない。
      */
-    const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    /**
-     * AAL 取得失敗時は遮断せず通す（アベイラビリティ優先）。
-     * 失敗時に /login へ飛ばすと、AAL API の一時障害で 2 要素認証を使っていない
-     * ユーザーまで全員ロックアウトされるため。検知のためログには残す。
-     */
-    if (aalError) console.error('[AuthenticatedLayout] AAL の取得に失敗しました:', aalError);
-    if (isMfaChallengePending(aal ? { currentLevel: aal.currentLevel, nextLevel: aal.nextLevel } : null)) {
+    if (isMfaChallengePending(await getVerifiedAalLevels(supabase, { user }))) {
         redirect('/login/verify');
     }
 

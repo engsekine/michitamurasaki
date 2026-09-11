@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ApplicationSheetIntroSection } from '@/features/application-sheet';
 import { CreditBalanceBadge } from '@/features/credits/components/server/CreditBalanceBadge';
 import { DashboardHero, RecordOverhaulButton, TopDashboard } from '@/features/dashboard';
 import { diveLocationLabel, getCoverThumbUrls, listDives } from '@/features/dives';
 import { GuideIntroSection } from '@/features/guide';
+import { getVerifiedAalLevels, isMfaChallengePending } from '@/features/mfa/lib/aalGuard';
 import { ensureTimedNotifications } from '@/features/notifications/server/queries';
 import { listNextPlansWithProgress, NextPlanCardView, NextPlanList, splitTodayPlan } from '@/features/plans';
 import { recordOverhaul } from '@/features/regulators';
@@ -29,13 +31,24 @@ export const metadata = generatePageMetadata(
  * ここ（app 層）で組み立てて DashboardHero / TopDashboard に注入する。
  */
 export default async function Home() {
-    // リマインド通知の遅延生成（025 / FR-009・FR-010。冪等・失敗は内部でログのみ）
-    await ensureTimedNotifications();
-
     const supabase = await createClient();
     const {
         data: { user },
     } = await supabase.auth.getUser();
+    /** 未認証は proxy で /login に弾かれるが、防御的に確認する */
+    if (!user) redirect('/login');
+
+    /**
+     * TOP は (authenticated) レイアウト配下ではないため、2 要素認証の 2 段階目が
+     * 保留中（AAL1→AAL2）でもそのまま描画されていた。ダッシュボードには最近のログ・
+     * タイムライン・予定・残枠が並ぶため、レイアウトと同じ基準でチャレンジへ誘導する。
+     */
+    if (isMfaChallengePending(await getVerifiedAalLevels(supabase, { user }))) {
+        redirect('/login/verify');
+    }
+
+    // リマインド通知の遅延生成（025 / FR-009・FR-010。冪等・失敗は内部でログのみ）
+    await ensureTimedNotifications();
 
     // 次の予定は FV（先頭 1 件・当日は詳細カード）と「次のダイビング予定」セクション（一覧・最大 5 件）で共有する。
     // タイムラインといいねしたログは TOP 内タブで切り替えるため、両方をここで取得する

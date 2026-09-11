@@ -8,6 +8,7 @@ import { buildExportFilename, contentDisposition } from '@/features/dives/lib/ex
 import { parseExportParams } from '@/features/dives/lib/export-params';
 import { fetchDivesForExport } from '@/features/dives/server/export-query';
 import type { Dive } from '@/features/dives/types';
+import { getVerifiedAalLevels, isMfaChallengePending } from '@/features/mfa/lib/aalGuard';
 import { createClient } from '@/shared/lib/supabase/server';
 
 /** ids が 1 件のときは単一ログ出力としてファイル名にダイブ日・ポイント名を含める */
@@ -51,6 +52,15 @@ export const GET = async (request: NextRequest): Promise<Response> => {
     } = await supabase.auth.getUser(token ?? undefined);
     if (!user) {
         return new NextResponse('認証が必要です', { status: 401 });
+    }
+
+    /**
+     * Route Handler は (authenticated)/layout の 2 要素認証ゲートを通らないため、
+     * 2 段階目が保留中（AAL1→AAL2）のセッションで全ログをダウンロードできてしまう。
+     * layout / requireUser と同じ基準で拒否する（Bearer 経路はトークンを渡して検証する）
+     */
+    if (isMfaChallengePending(await getVerifiedAalLevels(supabase, { user, jwt: token ?? undefined }))) {
+        return new NextResponse('2 段階認証を完了してください', { status: 403 });
     }
 
     const parsed = parseExportParams(request.nextUrl.searchParams);
