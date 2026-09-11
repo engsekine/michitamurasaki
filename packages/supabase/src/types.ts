@@ -1199,7 +1199,7 @@ export type Database = {
                 Args: { p_amount_jpy: number; p_quantity: number; p_session_id: string };
                 Returns: string;
             };
-            discard_recent_inquiry: { Args: { p_id: string }; Returns: undefined };
+            discard_recent_inquiry: { Args: { p_email: string; p_id: string }; Returns: undefined };
             get_dive_monthly_stats: {
                 Args: { months_back?: number };
                 Returns: {
