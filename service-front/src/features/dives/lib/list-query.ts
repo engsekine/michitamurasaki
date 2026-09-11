@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { DIVE_PAGE_SIZE } from '@/features/dives/constants';
 import type { DiveCursor, DiveListFilter, DiveListItem, DiveListPage, DiveSiteRef } from '@/features/dives/types';
+import { isSafeKeysetCursor } from '@/shared/lib/keyset-cursor';
 import { toNumber } from '@/shared/lib/number';
 
 /** 一覧表示で取得する列。`DiveListItem` と 1:1 で対応させる（表示名解決のため dive_site を結合） */
@@ -160,6 +161,8 @@ export const fetchDiveListPage = async (
     query = (await applyDiveListFilter(supabase, query, filter)).query;
 
     if (cursor) {
+        // クライアント由来のカーソルはフィルタ文字列へ補間するため、形式が不正なら空ページで打ち切る
+        if (!isSafeKeysetCursor({ ...cursor })) return { items: [], nextCursor: null };
         /** (dive_date, id) の降順タプル比較を or で表現 */
         query = query.or(`dive_date.lt.${cursor.diveDate},and(dive_date.eq.${cursor.diveDate},id.lt.${cursor.id})`);
     }

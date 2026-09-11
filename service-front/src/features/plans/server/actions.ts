@@ -3,10 +3,11 @@
 import { revalidatePath } from 'next/cache';
 
 import { DEFAULT_PACKING_ITEMS } from '@/features/plans/lib/default-packing-items';
-import type { PlanFormValues } from '@/features/plans/schemas/plan.schema';
+import { type PlanFormValues, packingItemSchema, planSchema } from '@/features/plans/schemas/plan.schema';
 import { requireUser } from '@/shared/lib/auth';
 import { todayInJst } from '@/shared/lib/date';
 import { createClient } from '@/shared/lib/supabase/server';
+import { validateWithSchema } from '@/shared/lib/validation';
 import { type ActionResult, actionFailure, actionSuccess } from '@/shared/types/action-result';
 
 /** PlanFormValues を DB の snake_case にマッピング */
@@ -39,11 +40,16 @@ const revalidatePlanPaths = (id?: string) => {
  * 予定を作成し、デフォルト持ち物を一括展開する（FR-002 / FR-011）。
  * 持ち物の展開に失敗した場合は作成した予定を削除し、中途半端な状態を残さない。
  */
-export const createPlan = async (input: PlanFormValues): Promise<ActionResult<{ id: string }>> => {
+export const createPlan = async (rawInput: PlanFormValues): Promise<ActionResult<{ id: string }>> => {
     const supabase = await createClient();
 
     const { user, failure } = await requireUser(supabase);
     if (failure) return failure;
+
+    // Server Action は任意クライアントから直接呼べるため、DB 書き込み前にサーバー側で再検証する
+    const validated = await validateWithSchema(planSchema, rawInput);
+    if (validated.error !== undefined) return actionFailure(validated.error);
+    const input: PlanFormValues = validated.values;
 
     if (!(await isOwnShop(supabase, input.diveShopId))) {
         return actionFailure('選択したショップが見つかりません');
@@ -78,11 +84,15 @@ export const createPlan = async (input: PlanFormValues): Promise<ActionResult<{ 
 };
 
 /** 予定を更新する（FR-004） */
-export const updatePlan = async (id: string, input: PlanFormValues): Promise<ActionResult> => {
+export const updatePlan = async (id: string, rawInput: PlanFormValues): Promise<ActionResult> => {
     const supabase = await createClient();
 
     const { failure } = await requireUser(supabase);
     if (failure) return failure;
+
+    const validated = await validateWithSchema(planSchema, rawInput);
+    if (validated.error !== undefined) return actionFailure(validated.error);
+    const input: PlanFormValues = validated.values;
 
     if (!(await isOwnShop(supabase, input.diveShopId))) {
         return actionFailure('選択したショップが見つかりません');
@@ -261,11 +271,16 @@ export const toggleConfirmItem = async (itemId: string, isConfirmed: boolean): P
 };
 
 /** 持ち物のカスタム項目を末尾に追加する（FR-013） */
-export const addPackingItem = async (planId: string, name: string): Promise<ActionResult<{ id: string }>> => {
+export const addPackingItem = async (planId: string, rawName: string): Promise<ActionResult<{ id: string }>> => {
     const supabase = await createClient();
 
     const { failure } = await requireUser(supabase);
     if (failure) return failure;
+
+    // 項目名の長さ・型をサーバー側で再検証する（クライアント検証は信頼しない）
+    const validated = await validateWithSchema(packingItemSchema, { name: rawName });
+    if (validated.error !== undefined) return actionFailure(validated.error);
+    const { name } = validated.values;
 
     const { data: last, error: lastError } = await supabase
         .from('plan_packing_items')

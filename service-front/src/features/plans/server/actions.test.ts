@@ -36,7 +36,7 @@ vi.mock('@/shared/lib/date', async (importOriginal) => ({
     todayInJst: () => '2026-08-07',
 }));
 
-import { completePacking, toggleConfirmItem, uncompletePacking } from './actions';
+import { addPackingItem, completePacking, createPlan, toggleConfirmItem, uncompletePacking } from './actions';
 
 /** completePacking が取得する予定 row のビルダー */
 const buildPlanRow = (overrides: Record<string, unknown> = {}) => ({
@@ -248,5 +248,32 @@ describe('uncompletePacking', () => {
 
         expect(result.success).toBe(false);
         expect(updateCalls).toHaveLength(0);
+    });
+});
+
+/**
+ * Server Action は任意クライアントから直接呼べるため、クライアントの yupResolver を通らない
+ * payload（スキーマ違反・型不一致）が DB に到達しないことを確認する。
+ */
+describe('createPlan / addPackingItem のサーバー側再検証', () => {
+    it('createPlan: 日付形式が不正な入力は DB に触れずに失敗する', async () => {
+        const result = await createPlan({ plannedOn: 'not-a-date', location: '大瀬崎', notes: null, diveShopId: null });
+
+        expect(result.success).toBe(false);
+        if (!result.success) expect(result.error).toBe('正しい日付を入力してください');
+        expect(from).not.toHaveBeenCalled();
+    });
+
+    it('createPlan: ポイント名が空の入力は失敗する', async () => {
+        const result = await createPlan({ plannedOn: '2026-08-10', location: '   ', notes: null, diveShopId: null });
+
+        expect(result.success).toBe(false);
+        expect(from).not.toHaveBeenCalled();
+    });
+
+    it('addPackingItem: 項目名が空・上限超過なら DB に触れずに失敗する', async () => {
+        expect((await addPackingItem('plan-1', '   ')).success).toBe(false);
+        expect((await addPackingItem('plan-1', 'あ'.repeat(500))).success).toBe(false);
+        expect(from).not.toHaveBeenCalled();
     });
 });

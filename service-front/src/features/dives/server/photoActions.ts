@@ -5,9 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { processPhoto } from '@/features/dives/lib/imageProcessing';
 import { buildDisplayPath, buildThumbPath, DIVE_PHOTOS_BUCKET } from '@/features/dives/lib/photoStorage';
 import { MAX_PHOTOS_PER_DIVE } from '@/features/dives/lib/photoValidation';
-import { PHOTO_CAPTION_MAX_LENGTH } from '@/features/dives/schemas/photo.schema';
+import { photoCaptionSchema } from '@/features/dives/schemas/photo.schema';
 import { requireUser } from '@/shared/lib/auth';
 import { createClient } from '@/shared/lib/supabase/server';
+import { validateWithSchema } from '@/shared/lib/validation';
 import { type ActionResult, actionFailure, actionSuccess } from '@/shared/types/action-result';
 
 interface AddDivePhotoInput {
@@ -27,6 +28,11 @@ export const addDivePhoto = async (input: AddDivePhotoInput): Promise<ActionResu
     const { user, failure } = await requireUser(supabase);
     if (failure) return failure;
 
+    // 型不一致の payload（Server Action 直叩き）で後段が TypeError → 500 にならないよう形式を先に確認する
+    if (typeof input.diveId !== 'string' || typeof input.origPath !== 'string') {
+        return actionFailure('不正なリクエストです');
+    }
+
     // 所有権: 対象 dive が本人のものか（情報漏洩を避け、無い場合は一般文言）
     const { data: dive } = await supabase
         .from('dives')
@@ -41,9 +47,9 @@ export const addDivePhoto = async (input: AddDivePhotoInput): Promise<ActionResu
         return actionFailure('不正な画像パスです');
     }
 
-    if (input.caption && input.caption.length > PHOTO_CAPTION_MAX_LENGTH) {
-        return actionFailure(`キャプションは ${PHOTO_CAPTION_MAX_LENGTH} 文字以内で入力してください`);
-    }
+    // キャプションはスキーマで再検証する（長さ・型。クライアント検証は信頼しない）
+    const captionValidated = await validateWithSchema(photoCaptionSchema, { caption: input.caption ?? '' });
+    if (captionValidated.error !== undefined) return actionFailure(captionValidated.error);
 
     // 枚数上限（既存 + 1 枚）。FR-003
     const { count } = await supabase

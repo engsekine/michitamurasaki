@@ -13,12 +13,17 @@ const buildSupabaseMock = (rpcResult: { data: unknown; error: { message: string 
     return { client: { rpc, from }, rpc, from, update };
 };
 
+/** 既定は standard パック（30 枠 / ¥1,200）を正規に決済した Session */
 const buildSession = (overrides: Partial<Stripe.Checkout.Session> = {}): Stripe.Checkout.Session =>
     ({
         id: 'cs_test_123',
         client_reference_id: 'user-1',
         payment_intent: 'pi_test_123',
         payment_status: 'paid',
+        mode: 'payment',
+        currency: 'jpy',
+        amount_total: 1200,
+        metadata: { pack_id: 'standard' },
         ...overrides,
     }) as Stripe.Checkout.Session;
 
@@ -26,7 +31,7 @@ describe('fulfillCheckoutSession', () => {
     it('paid のセッションで metadata.pack_id のパック内容で complete_purchase を呼ぶ', async () => {
         const { client, rpc } = buildSupabaseMock({ data: true, error: null });
 
-        const result = await fulfillCheckoutSession(client as any, buildSession({ metadata: { pack_id: 'standard' } }));
+        const result = await fulfillCheckoutSession(client as any, buildSession());
 
         expect(result).toEqual({ credited: true });
         expect(rpc).toHaveBeenCalledWith('complete_purchase', {
@@ -38,19 +43,36 @@ describe('fulfillCheckoutSession', () => {
         });
     });
 
-    it('metadata の無い旧セッションは旧単一パック（10 枠 / ¥300）で付与する', async () => {
+    it('metadata.pack_id が無い / 不明なセッションは付与しない（旧単一パックへのフォールバックは廃止）', async () => {
         const { client, rpc } = buildSupabaseMock({ data: true, error: null });
 
-        const result = await fulfillCheckoutSession(client as any, buildSession());
+        const result = await fulfillCheckoutSession(client as any, buildSession({ metadata: {}, amount_total: 300 }));
 
-        expect(result).toEqual({ credited: true });
-        expect(rpc).toHaveBeenCalledWith('complete_purchase', {
-            p_session_id: 'cs_test_123',
-            p_payment_intent_id: 'pi_test_123',
-            p_user_id: 'user-1',
-            p_quantity: 10,
-            p_amount_jpy: 300,
+        expect(result).toEqual({ credited: false, reason: 'unknown_pack' });
+        expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it('実請求額がパック定義と一致しないセッションは付与しない（pending 行の数量改ざん・別経路の Checkout を排除）', async () => {
+        const { client, rpc } = buildSupabaseMock({ data: true, error: null });
+
+        const result = await fulfillCheckoutSession(client as any, buildSession({ amount_total: 1 }));
+
+        expect(result).toEqual({ credited: false, reason: 'amount_mismatch' });
+        expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it('通貨・モードがパック定義と一致しないセッションは付与しない', async () => {
+        const { client, rpc } = buildSupabaseMock({ data: true, error: null });
+
+        expect(await fulfillCheckoutSession(client as any, buildSession({ currency: 'usd' }))).toEqual({
+            credited: false,
+            reason: 'amount_mismatch',
         });
+        expect(await fulfillCheckoutSession(client as any, buildSession({ mode: 'subscription' }))).toEqual({
+            credited: false,
+            reason: 'amount_mismatch',
+        });
+        expect(rpc).not.toHaveBeenCalled();
     });
 
     it('付与済みセッション（RPC が false）は credited: false の no-op になる（冪等）', async () => {
