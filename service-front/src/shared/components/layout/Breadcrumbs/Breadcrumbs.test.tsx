@@ -38,6 +38,25 @@ describe('Breadcrumbs', () => {
         expect(jsonLd.itemListElement[1].name).toBe('プライバシーポリシー');
     });
 
+    it('name に </script> を含んでも JSON-LD の script 要素を閉じられない（XSS 回帰テスト）', () => {
+        const maliciousName = '</script><script>alert(1)</script>&<img src=x>';
+        const { container } = render(<Breadcrumbs breadcrumbs={[{ name: maliciousName }]} />);
+
+        const script = container.querySelector('script[type="application/ld+json"]');
+        expect(script).not.toBeNull();
+
+        // 生の HTML には `<` `>` `&` が一切残らない（閉じタグ注入・HTML 解釈を不可能にする）
+        const rawHtml = script?.innerHTML ?? '';
+        expect(rawHtml).not.toContain('<');
+        expect(rawHtml).not.toContain('>');
+        expect(rawHtml).not.toContain('&');
+        expect(rawHtml).toContain('\\u003c/script');
+
+        // JSON としては等価（構造化データの意味は変わらない）
+        const jsonLd = JSON.parse(script?.textContent ?? '{}');
+        expect(jsonLd.itemListElement[1].name).toBe(maliciousName);
+    });
+
     it('多階層の breadcrumb を順序通りに表示する', () => {
         render(
             <Breadcrumbs
