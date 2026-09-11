@@ -7,7 +7,7 @@
  * 読めず anon になる（RLS で全行除外され検索が常に 0 件になる）バグがあった。
  * 全クライアントが共通の AUTH_COOKIE_NAME を明示することを保証する。
  */
-import { AUTH_COOKIE_NAME } from '@repo/supabase/constants';
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '@repo/supabase/constants';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { createBrowserClient, createServerClient } = vi.hoisted(() => ({
@@ -44,7 +44,7 @@ describe('Supabase クライアントの認証 Cookie 名', () => {
         expect(createBrowserClient).toHaveBeenCalledWith(
             'http://127.0.0.1:54321',
             'test-anon-key',
-            expect.objectContaining({ cookieOptions: { name: AUTH_COOKIE_NAME } }),
+            expect.objectContaining({ cookieOptions: { ...AUTH_COOKIE_OPTIONS, name: AUTH_COOKIE_NAME } }),
         );
     });
 
@@ -55,7 +55,7 @@ describe('Supabase クライアントの認証 Cookie 名', () => {
         expect(createServerClient).toHaveBeenCalledWith(
             'http://host.docker.internal:54321',
             'test-anon-key',
-            expect.objectContaining({ cookieOptions: { name: AUTH_COOKIE_NAME } }),
+            expect.objectContaining({ cookieOptions: { ...AUTH_COOKIE_OPTIONS, name: AUTH_COOKIE_NAME } }),
         );
     });
 
@@ -67,7 +67,16 @@ describe('Supabase クライアントの認証 Cookie 名', () => {
         expect(createServerClient).toHaveBeenCalledWith(
             'http://host.docker.internal:54321',
             'test-anon-key',
-            expect.objectContaining({ cookieOptions: { name: AUTH_COOKIE_NAME } }),
+            expect.objectContaining({ cookieOptions: { ...AUTH_COOKIE_OPTIONS, name: AUTH_COOKIE_NAME } }),
         );
+    });
+});
+
+describe('認証 Cookie の共通属性', () => {
+    it('path / sameSite を固定し、本番のみ Secure を付ける', () => {
+        expect(AUTH_COOKIE_OPTIONS.path).toBe('/');
+        expect(AUTH_COOKIE_OPTIONS.sameSite).toBe('lax');
+        // テスト環境（NODE_ENV=test）では false。本番では true になる（http:// への平文送信を防ぐ）
+        expect(AUTH_COOKIE_OPTIONS.secure).toBe(process.env['NODE_ENV'] === 'production');
     });
 });
