@@ -20,7 +20,9 @@ ARG TARGETARCH
 # 先に package.json 群だけコピー（変更頻度が低いため npm ci のキャッシュが効きやすい）
 # service-front が依存する workspace パッケージ（@repo/*）はすべて列挙する。
 # 漏れると npm ci で node_modules/@repo/<name> のリンクが作られず Module not found になる
-COPY package.json package-lock.json ./
+# .npmrc（ignore-scripts=true 等のサプライチェーン対策）を npm ci より前に置かないと
+# イメージビルドだけ依存パッケージの任意スクリプトが実行されてしまう
+COPY package.json package-lock.json .npmrc ./
 COPY service-front/package.json ./service-front/
 COPY packages/core/package.json ./packages/core/
 COPY packages/supabase/package.json ./packages/supabase/
@@ -34,8 +36,8 @@ COPY packages/ui/package.json ./packages/ui/
 #
 # sharp（next の画像最適化・ログエクスポートのサムネイル生成で使用）はバイナリ版の
 # 不一致を実行時に検証するため、バージョンを固定する:
-#   - @img/sharp-linuxmusl-<arch>         : service-front/package.json の sharp と同じ 0.34.5
-#   - @img/sharp-libvips-linuxmusl-<arch> : sharp 0.34.5 が要求する 1.2.4（latest 1.3.0 では不一致になる）
+#   - @img/sharp-linuxmusl-<arch>         : service-front/package.json の sharp と同じ 0.35.4
+#   - @img/sharp-libvips-linuxmusl-<arch> : sharp 0.35.4 が要求する 1.3.3（版が合わないと実行時に不一致エラー）
 # package.json の sharp を更新したら、下記の固定バージョンも必ず追従させること。
 #
 # oxc-parser / oxc-resolver / rolldown（Storybook 9 が内部で使うパーサ・リゾルバ・バンドラ）も
@@ -54,8 +56,8 @@ RUN npm ci && \
             @oxc-resolver/binding-linux-arm64-musl@11.20.0 \
             @rolldown/binding-linux-arm64-musl@1.0.3 \
             @biomejs/cli-linux-arm64-musl@2.4.16 \
-            @img/sharp-linuxmusl-arm64@0.34.5 \
-            @img/sharp-libvips-linuxmusl-arm64@1.2.4; \
+            @img/sharp-linuxmusl-arm64@0.35.4 \
+            @img/sharp-libvips-linuxmusl-arm64@1.3.3; \
     else \
         npm install --no-save --ignore-scripts \
             lightningcss-linux-x64-musl \
@@ -65,8 +67,8 @@ RUN npm ci && \
             @oxc-resolver/binding-linux-x64-musl@11.20.0 \
             @rolldown/binding-linux-x64-musl@1.0.3 \
             @biomejs/cli-linux-x64-musl@2.4.16 \
-            @img/sharp-linuxmusl-x64@0.34.5 \
-            @img/sharp-libvips-linuxmusl-x64@1.2.4; \
+            @img/sharp-linuxmusl-x64@0.35.4 \
+            @img/sharp-libvips-linuxmusl-x64@1.3.3; \
     fi
 
 # ========================================
@@ -127,8 +129,8 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-# 本番依存のみインストール（workspace 構造を再現してから）
-COPY package.json package-lock.json ./
+# 本番依存のみインストール（workspace 構造を再現してから。.npmrc で ignore-scripts を効かせる）
+COPY package.json package-lock.json .npmrc ./
 COPY service-front/package.json ./service-front/
 COPY packages/core ./packages/core
 COPY packages/supabase ./packages/supabase
