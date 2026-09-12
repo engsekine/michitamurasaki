@@ -46,7 +46,7 @@
 | F-25 | Low | service-front | お問い合わせメールの件名にユーザー入力（氏名）をそのまま連結 | 改行を除去 |
 | F-26 | Low | CI | ワークフローの `run:` に `${{ github.ref }}` / `${{ inputs.* }}` / `${{ steps.*.outputs.* }}` を直接展開（式展開によるシェル注入） | `env:` 経由の参照に変更（3 ワークフロー） |
 | F-27 | Low | インフラ | Docker ビルドで `.npmrc`（`ignore-scripts=true`）が `npm ci` より後に置かれ、イメージビルドだけ依存パッケージの任意スクリプトが実行されていた | `COPY` に `.npmrc` を追加 |
-| F-28 | Low | 依存 | `postcss` override が脆弱版（8.5.16）を許容。`undici` / `brace-expansion` / `browserslist` 等の transitive 脆弱性 | override を `^8.5.23` に更新、`npm audit fix`（非破壊）を適用 |
+| F-28 | Low | 依存 | `postcss` override が脆弱版（8.5.16）を許容。`undici` / `brace-expansion` / `browserslist` 等の transitive 脆弱性 | override を `^8.5.23` に更新、Expo に依存しない transitive を `npm update` で個別更新（3.1 参照） |
 
 ## 3. 修正の詳細
 
@@ -55,7 +55,9 @@
 - `service-front/package.json`・`admin-front/package.json`: `next` `^16.2.6` → `^16.3.4`、`sharp` `^0.34.0` → `^0.35.4`
 - `package.json`（root）: `@img/sharp-linux-x64` 0.35.4 / `@img/sharp-libvips-linux-x64` 1.3.3、`overrides.next.postcss` `^8.5.23`
 - `service-front/docker/node/Dockerfile`: musl 向け `@img/sharp-*` の固定バージョンを 0.35.4 / 1.3.3 に追従
-- `package-lock.json`: 上記 + `npm audit fix`
+- `package-lock.json`: 上記 + 脆弱な transitive 依存（`undici` / `brace-expansion` / `browserslist` / `js-yaml` / `@xmldom/xmldom` / `fast-uri` / `ip-address` / `qs` / `nanoid` 等）の個別更新（`npm update <pkg>`）
+
+当初は `npm audit fix` を使ったが、副作用で `expo` 系（57.0.2 → 57.0.20 ほか）まで更新され、`expo-modules-core` が `expo/node_modules` 配下に入れ子になって `jest-expo` から解決できず mobile のコンポーネントテスト（CI の `npm run test:component --workspace mobile`）が失敗した。lockfile を develop の状態から再構築し、Expo 系は据え置いたうえで Expo に依存しない transitive だけを更新している。
 
 本番依存（`npm audit --omit=dev`）の Critical は 4 → 0。残るのは Expo / Metro 系ビルドツールの transitive（下記 5 章）。
 
@@ -154,10 +156,10 @@ admin-front
 
 | 項目 | 結果 |
 |---|---|
-| `npm audit --omit=dev` | Critical 4 → 0、High 17 → 4（残りは Expo / Metro 系ビルドツールの transitive。5 章参照） |
+| `npm audit --omit=dev` | Critical 4 → 0、High 17 → 5（残りは Expo / Metro 系ビルドツールの transitive。5 章参照） |
 | service-front `vitest run --project=unit` | 1670 件通過（新規・更新テストを含む） |
 | admin-front `vitest run --project=unit` | 47 件通過（MFA フォーム・権限テストを含む） |
-| mobile `vitest run`（sync） | 12 件通過 |
+| mobile `vitest run` / `jest`（コンポーネント） | 31 件 / 10 件通過 |
 | `npx biome check .`（変更後） | エラーなし |
 | `tsc --noEmit`（service-front / admin-front / mobile） | エラーなし |
 | `npx biome check .` | エラーなし（残る 4 警告は今回触っていないファイルの `useSortedClasses`） |
