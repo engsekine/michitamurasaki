@@ -106,6 +106,56 @@ make admin-dev-https
 
 ---
 
+## ブランチ運用
+
+機能ブランチ → `develop` → `main` の一方向に流し、`develop` が **stg**、`main` が **prod** に対応します。デプロイはブランチへのマージでは起動せず、対応するブランチを選んで Actions から手動実行します（詳細は次章）。
+
+```text
+<NNN>-<feature-name>（機能ブランチ）
+   │  PR・レビュー・CI（push で自動実行）
+   ▼
+develop ──── Actions > Deploy (staging) ────▶ stg（Supabase stg / Vercel Preview 固定 URL）
+   │  PR（develop → main）
+   ▼
+main ─────── Actions > Deploy (production) ─▶ prod（Supabase prod / Vercel Production・承認 1 回）
+```
+
+| ブランチ | 役割 | 直接 push | 派生元 | マージ先 | 対応環境 |
+|---------|------|:---:|--------|---------|---------|
+| `<NNN>-<feature-name>`（例: `037-forgotten-item-check`） | 機能・修正の作業ブランチ。spec-kit の `/speckit-specify` が `specs/<NNN>-<feature-name>/` と同名で作成する | ✓ | `develop` | `develop` | （ローカル） |
+| `develop` | 統合ブランチ。stg で動作確認する内容 | ✗（PR 必須） | — | `main` | **stg** |
+| `main` | リリース済みの内容。常に prod と一致させる | ✗（PR 必須） | — | — | **prod** |
+
+### ルール
+
+- 機能ブランチは **必ず `develop` から切る**。`main` から切らない（`develop` に未リリースの変更が溜まっている前提のため）
+- `develop` / `main` への反映は **PR 経由のみ**。PR は `CI`（lint / type-check / unit test / db lint）が green であることを確認してからマージする
+- `main` へは `develop` からの PR のみ流す。機能ブランチから `main` へ直接 PR を出さない（stg を経ずに prod へ出ることを防ぐ）
+- hotfix が必要な場合も `develop` に入れて stg で確認したうえで `main` へ流す。緊急時に `main` へ直接入れた場合は、必ず `main` → `develop` へ逆マージして差分を戻す
+- マージ後の機能ブランチは削除する（GitHub の "Automatically delete head branches" を有効化推奨）
+- コミットメッセージは `feat:` / `fix:` / `docs:` / `refactor:` / `test:` / `chore:` の prefix を付ける（[.claude/CLAUDE.md](.claude/CLAUDE.md) のコミットメッセージ規約）
+
+### 1 機能の流れ
+
+```bash
+# 1. develop を最新化して機能ブランチを切る
+git switch develop && git pull
+git switch -c 038-new-feature          # /speckit-specify を使う場合は自動で作成される
+
+# 2. 実装・コミット・push → develop への PR を作成
+git push -u origin 038-new-feature
+gh pr create --base develop
+
+# 3. レビュー・CI green → マージ → Actions > Deploy (staging) を develop で実行 → stg で確認
+
+# 4. リリース: develop → main の PR を作成・マージ → Actions > Deploy (production) を main で実行 → 承認
+gh pr create --base main --head develop --title "release: <日付 or 内容>"
+```
+
+stg 環境の初期セットアップ（Supabase / Vercel / GitHub Secrets）がまだの場合は [DEPLOY_STG.md](DEPLOY_STG.md) を参照してください。
+
+---
+
 ## デプロイ（stg / prod）
 
 GitHub Actions によるデプロイパイプライン（028-deploy-pipeline）。**手動実行（workflow_dispatch）** で、DB マイグレーション → アプリの順に反映されます（2026-07-17 にマージ連動の自動デプロイから移行）。
@@ -128,7 +178,7 @@ Actions > Deploy (production) > Run workflow（main を選択）   : 承認者�
 
 - ワークフロー: [`_deploy.yml`](.github/workflows/_deploy.yml)（実体・reusable）/ [`deploy-stg.yml`](.github/workflows/deploy-stg.yml) / [`deploy-prod.yml`](.github/workflows/deploy-prod.yml)
 - デプロイ元ブランチはワークフロー内のガードで固定（stg = develop / prod = main）。他のブランチを選んで実行してもジョブはスキップされます
-- CI / Full Test も手動実行です。デプロイ前に対象ブランチで CI が通っていることを確認してから実行してください（自動の required checks は廃止）
+- `CI` はブランチへの push で自動実行されます（2026-08-08 に手動運用から復帰）。`Full Test`（E2E / Storybook）は手動実行のままです。デプロイ前に対象ブランチで CI が通っていることを確認してから実行してください（required checks は設定していない）
 - 同一環境への連続実行は直列化されます（実行中デプロイは完走・後続はキュー待ち）
 
 ### 必要なシークレット（GitHub Environments）
@@ -162,11 +212,11 @@ GitHub リポジトリの **Settings > Environments** に 3 つの環境を作�
 2. **Vercel**: service-front / admin-front の 2 プロジェクトを作成。Root Directory をそれぞれ `service-front` / `admin-front` に設定し、**Git 連携の自動デプロイを無効化**（有効のままだと push で二重デプロイされ順序保証が壊れる）。Environment Variables を Preview / Production スコープで設定
 3. **Stripe**: テストモード（stg URL）/ 本番モード（prod URL）それぞれに webhook エンドポイント `https://<env-url>/api/stripe/webhook` を登録し、`whsec_...` を Vercel の該当スコープへ
 4. **GitHub Environments**: 上記 3 環境を作成し、シークレットと required reviewers を設定
-5. **ブランチ保護**: develop / main に PR 必須を設定（CI が手動実行になったため required checks は設定しない。設定するとチェックが自動で走らずマージ不能になる）
+5. **ブランチ保護**: develop / main に PR 必須を設定（required checks は任意。`CI` は push で自動実行されるため設定しても良いが、手動実行の `Full Test` を required にするとマージ不能になるので含めない）
 
 ### リリースの流れ
 
-1. 機能ブランチ → `develop` へ PR・マージ → Actions の `CI`（必要なら `Full Test` も）を develop で手動実行して green を確認
+1. 機能ブランチ → `develop` へ PR・マージ → push で自動実行される `CI`（必要なら `Full Test` を手動実行）が develop で green であることを確認
 2. Actions の `Deploy (staging)` を **develop を選んで Run workflow** → stg URL で動作確認
 3. `develop` → `main` へ PR・マージ → Actions の `Deploy (production)` を **main を選んで Run workflow** → **承認待ちで停止**
 4. 承認者が Actions の Review deployments から承認 → DB → アプリの順で prod へ反映
