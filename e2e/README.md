@@ -60,6 +60,12 @@ npx playwright show-report                            # 直前の HTML レポー
 
 `E2E_APP`（`service` / `admin` / 両方はカンマ区切り）は **起動する dev サーバー**を絞る。`--project` はテストの絞り込みなので、片側だけ回すときは両方を指定するのが速い（`npm run test:service` / `npm run test:admin` はその組み合わせ）。
 
+> **同時に動かすのは 1 プロセスだけ**（CLI・UI モード・watch モード・VS Code 拡張を含む）。
+> すべての実行が同じ `test-results/` を共有し、各 worker は `test-results/.playwright-artifacts-<N>/` にトレースを書く。
+> 2 つの実行が並走すると worker 番号が衝突し、片方の worker 終了時のフォルダ削除でもう片方のトレースファイルが消え、
+> テスト本体とは無関係な `apiRequestContext._wrapApiCall: ENOENT ... recordingN.stacks` で失敗する。
+> このエラーが出たら、別ターミナルや VS Code 拡張で Playwright が動いていないか確認して片方を止め、再実行する。
+
 ### watch モード（spec の保存で自動再実行）
 
 ```bash
@@ -84,7 +90,8 @@ Playwright の watch モード（`PWTEST_WATCH=1`）で起動する。spec フ�
     test.use({ storageState: NO_AUTH });
     ```
 
-4. 別ユーザーや別コンテキストでログインしたいときは `loginWithPassword(page, SERVICE_BUDDY_USER)` のように共通関数を直接呼ぶ（`browser.newContext()` で作ったコンテキストは未認証で始まる）
+4. 別ユーザーや別コンテキストでログインしたいときは `browser.newContext({ storageState: NO_AUTH })` で未認証のコンテキストを作り、`loginWithPassword(page, SERVICE_BUDDY_USER)` のように共通関数を直接呼ぶ（`browser.newContext()` は project 既定の storageState を継承するため、明示しないとログイン済みで始まる）
+5. react-hook-form のフォームは `waitForHydration(page)` を挟んでから入力する（ハイドレーション前の入力は React が初期値で上書きする。`/plans/new` `/dives/new` の作成ヘルパーで使用）
 
 ユーザーの資格情報は `shared/users.ts` に集約している（seed と一致させる）。
 

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-
+import { waitForHydration } from '../shared/auth';
 import { presetConsent } from './a11y/_helpers';
 
 /**
@@ -19,8 +19,11 @@ test.beforeEach(async ({ context }) => {
 /** 予定を 1 件作成し、作成後の詳細ページ（/plans/{id}）で止まる */
 const createPlan = async (page: Page, plannedOn: string, location: string) => {
     await page.goto('/plans/new');
+    await waitForHydration(page);
     await page.getByLabel(/予定日/).fill(plannedOn);
     await page.getByLabel(/ポイント名/).fill(location);
+    // 送信前に入力が保持されていることを確認する（ハイドレーションによる初期値への上書きを検知）
+    await expect(page.getByLabel(/予定日/)).toHaveValue(plannedOn);
     await page.getByRole('button', { name: '作成する' }).click();
     await page.waitForURL(/\/plans\/[0-9a-f-]+$/);
 };

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-
+import { waitForHydration } from '../../shared/auth';
 import { presetConsent } from './_helpers';
 
 /** a11y スイープでバナーが重ならないよう同意済み Cookie をプリセット（017-cookie-consent） */
@@ -17,6 +17,7 @@ const expectNoViolations = async (page: Page) => {
 test('ダイブサイト詳細 - WCAG 2.1 AA 違反なし（要認証）', async ({ page }) => {
     // マスタ（seed の「大瀬崎」）を検索選択してログを作成
     await page.goto('/dives/new');
+    await waitForHydration(page);
     await page.getByLabel(/潜水日/).fill('2026-04-15');
     const siteInput = page.getByRole('combobox', { name: /ダイブサイト/ });
     await siteInput.click();

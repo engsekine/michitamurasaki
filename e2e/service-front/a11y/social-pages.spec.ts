@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-
+import { waitForHydration } from '../../shared/auth';
 import { presetConsent } from './_helpers';
 
 /** a11y スイープでバナーが重ならないよう同意済み Cookie をプリセット（017-cookie-consent） */
@@ -25,6 +25,7 @@ const expectNoViolations = async (page: Page) => {
 test('ログ作成フォーム（バディ欄）・詳細（公開トグル）- WCAG 2.1 AA 違反なし（要認証）', async ({ page }) => {
     // 作成フォーム: DiveBuddyField が描画され、バディ行を追加できる
     await page.goto('/dives/new');
+    await waitForHydration(page);
     await expect(page.getByRole('group', { name: '同行したバディ' })).toBeVisible();
     await page.getByRole('button', { name: 'バディを追加' }).click();
     await expect(page.getByLabel('バディ名 1')).toBeVisible();

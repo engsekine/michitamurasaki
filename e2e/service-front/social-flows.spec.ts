@@ -1,7 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
-
+import { NO_AUTH, waitForHydration } from '../shared/auth';
 import { presetConsent } from './a11y/_helpers';
-import { NO_AUTH } from '../shared/auth';
 
 /**
  * spec 021 quickstart S1 / S2 の E2E 検証（T052 の自動化分）。
@@ -20,6 +19,7 @@ test.beforeEach(async ({ context }) => {
 
 const createDive = async (page: Page, location: string, diveNumber: number) => {
     await page.goto('/dives/new');
+    await waitForHydration(page);
     await page.getByLabel(/潜水日/).fill('2026-04-20');
     // ダイブ番号を明示指定して seed/他テストとの一意制約衝突を避ける
     await page.getByLabel('ダイブ番号').fill(String(diveNumber));

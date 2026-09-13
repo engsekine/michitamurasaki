@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { loginWithPassword, NO_AUTH } from '../shared/auth';
+import { loginWithPassword, NO_AUTH, waitForHydration } from '../shared/auth';
 import { SERVICE_BUDDY_USER } from '../shared/users';
 import { presetConsent } from './a11y/_helpers';
 
@@ -140,6 +140,7 @@ test('予定・ログ・シートへの紐付けと、ショップ削除時の�
 
     // 予定に紐付け → 予定詳細にショップ名（リンク）
     await page.goto('/plans/new');
+    await waitForHydration(page);
     await page.getByLabel(/ポイント名/).fill('紐付けテスト予定');
     await page.getByLabel(/ショップ/).selectOption({ label: SHOP_NAME });
     await page.getByRole('button', { name: '作成する' }).click();
@@ -149,6 +150,7 @@ test('予定・ログ・シートへの紐付けと、ショップ削除時の�
 
     // ログに紐付け → ログ詳細にショップ名（リンク）
     await page.goto('/dives/new');
+    await waitForHydration(page);
     await page.getByLabel(/潜水日/).fill('2026-05-10');
     await page.getByLabel('ダイブ番号').fill(DIVE_NUMBER);
     await page.getByLabel(/ポイント名/).fill('紐付けテストログ');

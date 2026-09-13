@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-
+import { waitForHydration } from '../../shared/auth';
 import { presetConsent } from './_helpers';
 
 /**
@@ -50,6 +50,8 @@ test('ログ一覧・新規作成に残枠バッジが表示される（FR-013�
     await expect(page.getByText('残りログ枠')).toBeVisible();
 
     await page.goto('/dives/new');
+
+    await waitForHydration(page);
     await expect(page.getByText('残りログ枠')).toBeVisible();
     await expectNoViolations(page);
 });

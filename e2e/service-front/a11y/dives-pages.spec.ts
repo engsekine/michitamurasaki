@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-
+import { waitForHydration } from '../../shared/auth';
 import { presetConsent } from './_helpers';
 
 /** a11y スイープでバナーが重ならないよう同意済み Cookie をプリセット（017-cookie-consent） */
@@ -21,6 +21,7 @@ test('/dives 系 2 画面 - WCAG 2.1 AA 違反なし（要認証）', async ({ p
 
     // ログを 1 件作成して詳細（潮回りラベル込み）を検証
     await page.goto('/dives/new');
+    await waitForHydration(page);
     await page.getByLabel(/潜水日/).fill('2026-04-15');
     await page.getByLabel(/ポイント名/).fill('a11y テスト用ポイント');
     await page.getByLabel(/最大水深/).fill('18');

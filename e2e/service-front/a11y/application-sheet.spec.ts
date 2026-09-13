@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-
+import { waitForHydration } from '../../shared/auth';
 import { presetConsent } from './_helpers';
 
 /** コピー機能（navigator.clipboard.writeText）の検証に clipboard-write 権限が必要 */
@@ -35,10 +35,14 @@ test('/application-sheet - WCAG 2.1 AA 違反なし（要認証）', async ({ pa
 
 test('/application-sheet - キーボード操作で入力とコピーができる（要認証）', async ({ page }) => {
     await page.goto('/application-sheet');
+    // 自動入力（プロフィール / 保存済み基本情報）はハイドレーション後に反映されるため、
+    // その前に空にすると復元されて入力が後ろに追記される。ハイドレーションを待ってからクリアする
+    await waitForHydration(page);
 
     // キーボードのみで入力できる（label 関連付け + フォーカス移動）。
-    // お名前はプロフィールから自動入力されるため、いったん空にしてから打ち直す（FR-008 の上書きも兼ねる）
+    // お名前は自動入力されるため、いったん空にしてから打ち直す（FR-008 の上書きも兼ねる）
     await page.getByLabel('お名前').fill('');
+    await expect(page.getByLabel('お名前')).toHaveValue('');
     await page.getByLabel('お名前').click();
     await page.keyboard.type('山田 太郎');
     await expect(page.getByLabel('生成テキスト')).toHaveValue(/・お名前（山田 太郎）/);

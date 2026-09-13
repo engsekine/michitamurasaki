@@ -46,3 +46,20 @@ export const saveStorageState = async (page: Page, path: string): Promise<void> 
     mkdirSync(dirname(path), { recursive: true });
     await page.context().storageState({ path });
 };
+
+/**
+ * App Router のクライアント側ハイドレーション完了を待つ。
+ *
+ * なぜ: react-hook-form のフォームにハイドレーション前（SSR 直後）に fill すると、
+ * ハイドレーション時に React が初期値で上書きし、入力が消える／自動入力の後ろに追記される
+ * （CI の低速な dev サーバーで再現）。フォーム入力の前に呼ぶ。
+ * どうやるか: React はハイドレーション時に DOM ノードへ内部プロパティ（`__reactProps$…`）を付与するので、
+ * 対象要素（既定は最初の form）にそれが現れるまで待つ。`networkidle` は dev サーバーが HMR 等の
+ * 接続を保持するため収束せずタイムアウトすることがあり使わない。
+ */
+export const waitForHydration = async (page: Page, selector = 'form'): Promise<void> => {
+    await page.waitForFunction((sel) => {
+        const element = document.querySelector(sel);
+        return element !== null && Object.keys(element).some((key) => key.startsWith('__reactProps'));
+    }, selector);
+};

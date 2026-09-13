@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-
+import { waitForHydration } from '../../shared/auth';
 import { presetConsent } from './_helpers';
 
 /** a11y スイープでバナーが重ならないよう同意済み Cookie をプリセット（017-cookie-consent） */
@@ -21,6 +21,7 @@ test('/plans 系 3 画面 - WCAG 2.1 AA 違反なし（要認証）', async ({ p
 
     // 作成フォーム
     await page.goto('/plans/new');
+    await waitForHydration(page);
     await expectNoViolations(page);
 
     // 予定を 1 件作成して詳細（持ち物リスト）を検証

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-
+import { waitForHydration } from '../shared/auth';
 import { presetConsent } from './a11y/_helpers';
 
 /**
@@ -27,6 +27,7 @@ const xIntentParams = async (page: Page) => {
 test('US1: 公開ログ詳細で SNS 共有ボタンが動作し、非公開では表示されない', async ({ page }) => {
     // ログ作成（非公開のまま）
     await page.goto('/dives/new');
+    await waitForHydration(page);
     await page.getByLabel(/潜水日/).fill('2026-04-21');
     await page.getByLabel('ダイブ番号').fill('9201');
     await page.getByLabel(/ポイント名/).fill('SNS共有の検証');
