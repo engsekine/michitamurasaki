@@ -90,12 +90,12 @@ make supabase-reset
 # 3. service-front（ユーザー向けアプリ → http://localhost:3000）
 #    事前に service-front/.env の作成が必要 → 詳細: service-front/README.md
 make front-setup   # 初回のみ
-make front-dev
+make front-dev-https
 
 # 4. admin-front（運営管理画面 → http://localhost:3001）
 #    → 詳細: admin-front/README.md
 make admin-cert    # 初回のみ
-make admin-dev
+make admin-dev-https
 ```
 
 - ログ枠購入（Stripe 決済）を動かす場合の設定・**テスト用カード番号**は [service-front/README.md の「Stripe の設定」](service-front/README.md#stripe-の設定ログ枠購入--026) を参照
