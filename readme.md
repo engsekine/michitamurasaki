@@ -61,7 +61,10 @@ echo ".devcontainer/devcontainer.json" >> .git/info/exclude
 | `supabase/` | ローカル Supabase（Auth / PostgreSQL / Storage）の設定・マイグレーション・seed | 54321（API）/ 54322（DB）/ 54323（Studio） | [supabase/README.md](supabase/README.md) |
 | `service-front/` | ユーザー向けアプリ（Next.js App Router）。Docker で起動 | 3000 | [service-front/README.md](service-front/README.md) |
 | `admin-front/` | 運営管理画面（Next.js）。npm で直接起動 | 3001 | [admin-front/README.md](admin-front/README.md) |
+| `mobile/` | モバイルアプリ（Expo / React Native）。**未完成（開発中）** | 8081（Expo dev server） | [mobile/README.md](mobile/README.md)（Expo 初期テンプレートのまま） |
 | `packages/` | 共有パッケージ（`@repo/ui` / `@repo/supabase`） | - | - |
+
+> **モバイルアプリは未完成です。** 現在はログイン・ログの一覧 / 作成・オフライン同期・エクスポート呼び出しの最小機能のみで、Web（service-front）と同等の機能や 2 要素認証（SMS）には対応していません。上記の起動順序・デプロイ手順は Web サービスを対象としています。
 
 ### 前提ツール
 
