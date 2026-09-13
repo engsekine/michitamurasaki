@@ -6,6 +6,8 @@
 export interface TestUser {
     email: string;
     password: string;
+    /** seed が固定 uuid で投入するユーザーのみ。DB 状態を直接リセットするテスト（shared/db.ts）が使う */
+    id?: string;
 }
 
 /** service-front の標準テストユーザー（handle: taro）。setup project がこのユーザーでログインする */
@@ -14,8 +16,12 @@ export const SERVICE_USER: TestUser = { email: 'test@example.com', password: 'pa
 /** 別セッション側の登録ユーザー（handle: buddy-taro）。公開ビューの検証やフォロー相手として使う */
 export const SERVICE_BUDDY_USER: TestUser = { email: 'buddy@example.com', password: 'password123' };
 
-/** デイリーボーナス検証専用（seed で当日分の daily_bonus を付与していない） */
-export const SERVICE_BONUS_USER: TestUser = { email: 'bonus@example.com', password: 'password123' };
+/** デイリーボーナス検証専用（seed で当日分の daily_bonus を付与していない。テスト側が当日分を毎回取り消す） */
+export const SERVICE_BONUS_USER: TestUser = {
+    email: 'bonus@example.com',
+    password: 'password123',
+    id: '000000b0-0000-0000-0000-000000000005',
+};
 
 /** ユーザー ID（handle）変更フロー専用（他テストのプロフィール URL 前提を壊さないよう分離） */
 export const SERVICE_RENAME_USER: TestUser = { email: 'rename@example.com', password: 'password123' };

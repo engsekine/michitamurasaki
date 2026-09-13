@@ -132,7 +132,7 @@ npx biome check .
 
 - プロジェクト原則は [.specify/memory/constitution.md](../.specify/memory/constitution.md) を参照
 - 新機能は `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement` のフローで進める
-- 旧仕様書 `docs/specs/` は spec-kit（`specs/`）へ移行完了し削除済み（プロダクト方針は引き続き [docs/product.md](../docs/product.md)）
+- 旧仕様書 `docs/specs/` と旧プロダクト方針 `docs/product.md` は削除済み。プロダクト方針（収益モデル・広告なし・将来構想）は [.specify/memory/constitution.md](../.specify/memory/constitution.md) の Product Direction 節に集約
 
 ## コード規約
 

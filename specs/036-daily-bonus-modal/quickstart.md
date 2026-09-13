@@ -35,7 +35,7 @@ npm run dev --workspace=service-front   # http://localhost:3000
 
 ### 4. 再検証したいとき
 
-同日中の再検証は `make supabase-reset` で ledger を初期化してから行う（`bonus@example.com` の当日分が未付与状態に戻る）。
+手動での同日中の再検証は `make supabase-reset` で ledger を初期化してから行う（`bonus@example.com` の当日分が未付与状態に戻る）。E2E（`e2e/service-front/daily-bonus-modal.spec.ts`）は `beforeAll` で `bonus@example.com` の当日分を DB から取り消してから始まるため（`e2e/shared/db.ts`）、reset なしで何度でも実行できる。
 
 ## 自動テスト
 

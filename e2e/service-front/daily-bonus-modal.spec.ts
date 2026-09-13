@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { loginWithPassword, NO_AUTH } from '../shared/auth';
+import { revokeTodaysDailyBonus } from '../shared/db';
 import { SERVICE_BONUS_USER, SERVICE_USER } from '../shared/users';
 import { presetConsent } from './a11y/_helpers';
 
@@ -10,15 +11,20 @@ test.use({ storageState: NO_AUTH });
 /**
  * spec 036（デイリーボーナス獲得モーダル）の E2E 検証。
  *
- * ⚠️ 前提: `make supabase-reset` 直後に実行すること。
  * bonus@example.com は seed で当日分の daily_bonus を付与していない専用ユーザーで、
- * 初回ログインの付与でモーダルが表示される。付与は冪等（1 日 1 回）のため、
- * 同日中の再実行にはふたたび db reset が必要。
+ * 当日初回の付与でモーダルが表示される。付与は冪等（1 日 1 回）なので、
+ * 同日中に 2 回目以降を実行すると付与が起きずモーダルが出ない。
+ * そのため beforeAll で当日分を DB から取り消し、毎回「未付与」から始める（db reset は不要）。
  * 他の seed ユーザー（test@ など）は当日分を事前付与済みでモーダルは出ない。
  */
 
 // bonus@example.com の付与状態を共有するため直列実行する
 test.describe.configure({ mode: 'serial' });
+
+test.beforeAll(async () => {
+    if (!SERVICE_BONUS_USER.id) throw new Error('SERVICE_BONUS_USER.id が未設定です（shared/users.ts）');
+    await revokeTodaysDailyBonus(SERVICE_BONUS_USER.id);
+});
 
 // dev サーバーのオンデマンドコンパイル（/dives → /dives/new + React Compiler）が
 // 初回はローカル既定の 30 秒に収まらないことがあるため延長する
