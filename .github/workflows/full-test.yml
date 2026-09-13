@@ -18,7 +18,8 @@ permissions:
 jobs:
     e2e:
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        # 2 コアランナー・workers=1 で 99 件（両アプリの dev サーバー起動 + オンデマンドコンパイル込み）を回すため余裕を持たせる
+        timeout-minutes: 45
         env:
             # config.toml の auth.email.smtp.enabled が env(SMTP_ENABLED) を参照するため、
             # 未定義だと supabase CLI が config パースで失敗する。CI はメール実送信しないので false 固定
@@ -37,6 +38,15 @@ jobs:
                   version: 2.107.0
             - name: Supabase ローカルスタックを起動
               run: supabase start
+            - name: seed.sql を生成（テストユーザー）
+              # seed.sql は gitignore 対象の生成物（make supabase-seed が .env.local から envsubst で作る）。
+              # CI には無いため、ここで同じ手順で生成する。値は E2E（e2e/shared/users.ts）が使う公開のダミーで、シークレットではない。
+              # これが無いと supabase db reset は seed を黙ってスキップし、E2E のログインがすべて失敗する
+              env:
+                  TEST_USER_ID: 11111111-1111-1111-1111-111111111111
+                  TEST_USER_EMAIL: test@example.com
+                  TEST_USER_PASSWORD: password123
+              run: envsubst '$TEST_USER_ID $TEST_USER_EMAIL $TEST_USER_PASSWORD' < supabase/seed.sql.template > supabase/seed.sql
             - name: マイグレーション + シード投入（テストユーザー作成）
               run: supabase db reset
             - name: ローカルスタックの接続情報から各アプリの .env を生成（シークレット不要）
