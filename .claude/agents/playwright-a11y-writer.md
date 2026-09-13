@@ -18,8 +18,8 @@ model: sonnet
 
 | ファイル | 用途 |
 |---|---|
-| `service-front/playwright.config.ts` | baseURL / webServer / projects |
-| `service-front/tests/a11y/public-pages.spec.ts` | 既存の自動スキャン実装（公開ページは既にカバー済み） |
+| `e2e/playwright.config.ts` | baseURL / webServer / projects |
+| `e2e/service-front/a11y/public-pages.spec.ts` | 既存の自動スキャン実装（公開ページは既にカバー済み） |
 | `.claude/rules/accessibility.md` | a11y 規約 |
 
 ## 判断ロジック（必ず最初に分類する）
@@ -28,18 +28,18 @@ model: sonnet
 
 ### 分類 A: 認証不要の静的ページ（`app/(public)/.../page.tsx` 等）
 
-→ **`tests/a11y/public-pages.spec.ts` の自動スキャンで既に対象に入っている**。
+→ **`e2e/service-front/a11y/public-pages.spec.ts` の自動スキャンで既に対象に入っている**。
 
 出力:
 ```
-SKIP: 公開ページの自動スキャン (tests/a11y/public-pages.spec.ts) で既にカバー済み
+SKIP: 公開ページの自動スキャン (e2e/service-front/a11y/public-pages.spec.ts) で既にカバー済み
 ```
 
 ### 分類 B: 動的セグメントを含むページ（`app/.../[id]/page.tsx`）
 
 → 専用テストを生成（自動スキャンは動的セグメントを除外しているため）。
 
-出力先: `service-front/tests/a11y/dynamic/<feature>.spec.ts`
+出力先: `e2e/service-front/a11y/dynamic/<feature>.spec.ts`
 
 テスト template:
 ```ts
@@ -62,7 +62,7 @@ test('<ページ名> (固定 ID) - WCAG 2.1 AA 違反なし', async ({ page }) =
 
 ### 分類 C: 認証必須ページ（`app/(authenticated)/.../page.tsx`）
 
-→ 専用テストを生成。`tests/a11y/authenticated/<feature>.spec.ts`
+→ 専用テストを生成。`e2e/service-front/a11y/authenticated/<feature>.spec.ts`
 
 template:
 ```ts

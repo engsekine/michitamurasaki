@@ -6,7 +6,7 @@
         check check-fix \
         type-check \
         test test-watch test-coverage \
-        test-storybook test-e2e test-e2e-ui test-a11y test-all \
+        test-storybook test-all \
         storybook build-storybook ci-storybook \
         validate
 
@@ -43,10 +43,7 @@ help:
 	@echo "  make test-watch      単体テスト (watch)"
 	@echo "  make test-coverage   単体テスト + coverage"
 	@echo "  make test-storybook  Storybook テスト"
-	@echo "  make test-e2e        E2E テスト"
-	@echo "  make test-e2e-ui     E2E テスト (UI モード)"
-	@echo "  make test-a11y       a11y E2E テスト 一覧"
-	@echo "  make test-all        単体 + E2E"
+	@echo "  make test-all        単体 + Storybook（E2E はルートの make e2e）"
 	@echo "  make validate        type-check + lint + test"
 	@echo ""
 	@echo "  [Storybook]"
@@ -190,19 +187,7 @@ test-coverage:
 test-storybook:
 	$(COMPOSE) exec $(SERVICE) npm run test:storybook
 
-## E2E テスト (Playwright)
-test-e2e:
-	$(COMPOSE) exec $(SERVICE) npm run test:e2e
-
-## E2E テスト UI モード（Playwright UI はブラウザ表示が必要なため、コンテナ内では起動しづらい。ホスト直で実行する）
-test-e2e-ui:
-	cd $(CURDIR) && npm run test:e2e:ui
-
-## a11y E2E テスト 一覧
-test-a11y:
-	$(COMPOSE) exec $(SERVICE) npm run test:a11y
-
-## 単体 + E2E をまとめて実行
+## 単体 + Storybook をまとめて実行（E2E はアプリから独立した e2e/ ワークスペースへ移行。ルートで `make e2e`）
 test-all:
 	$(COMPOSE) exec $(SERVICE) npm run test:all
 
