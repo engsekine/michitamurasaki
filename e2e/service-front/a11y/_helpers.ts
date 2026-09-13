@@ -1,6 +1,11 @@
 import type { BrowserContext } from '@playwright/test';
 
-import { COOKIE_CONSENT_NAME } from '../../src/features/consent/lib/cookie-consent';
+/**
+ * Cookie 同意の保存先 Cookie 名（017-cookie-consent）。
+ * E2E はアプリのソースを import しない（独立したワークスペース）ため値を再定義する。
+ * 変更時は `service-front/src/features/consent/lib/cookie-consent.ts` の COOKIE_CONSENT_NAME と揃える。
+ */
+export const COOKIE_CONSENT_NAME = 'cookie-consent';
 
 /**
  * a11y スイープ用に「同意済み」Cookie をプリセットする（017-cookie-consent）。

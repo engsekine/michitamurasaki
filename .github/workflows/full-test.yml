@@ -39,23 +39,28 @@ jobs:
               run: supabase start
             - name: マイグレーション + シード投入（テストユーザー作成）
               run: supabase db reset
-            - name: ローカルスタックの接続情報から .env を生成（シークレット不要）
+            - name: ローカルスタックの接続情報から各アプリの .env を生成（シークレット不要）
+              # E2E は e2e/ ワークスペースが service-front / admin-front の dev サーバーを起動するため、両アプリ分を用意する
               run: |
-                  eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY)=')"
-                  {
-                      echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
-                      echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
-                  } > service-front/.env
+                  eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
+                  for app in service-front admin-front; do
+                      {
+                          echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
+                          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
+                      } > "${app}/.env"
+                  done
+                  # admin-front は Admin API（MFA 状態参照）で service_role を使う。ローカルスタックの公開デフォルト値
+                  echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> admin-front/.env
             - name: Playwright ブラウザをインストール
               run: npx playwright install chromium --with-deps
-              working-directory: service-front
-            - name: E2E / a11y テスト
-              run: npm run test:e2e --workspace service-front
+              working-directory: e2e
+            - name: E2E / a11y テスト（service-front + admin-front）
+              run: npm run test --workspace e2e
             - uses: actions/upload-artifact@v4
               if: failure()
               with:
                   name: playwright-report
-                  path: service-front/playwright-report
+                  path: e2e/playwright-report
                   retention-days: 7
 
     storybook-test:

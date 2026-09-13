@@ -1,0 +1,31 @@
+{
+    "name": "e2e",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "playwright test",
+        "test:service": "E2E_APP=service playwright test --project=service-front",
+        "test:admin": "E2E_APP=admin playwright test --project=admin-front",
+        "test:a11y": "playwright test service-front/a11y admin-front/a11y",
+        "test:ui": "playwright test --ui",
+        "report": "playwright show-report",
+        "install:browsers": "playwright install chromium",
+        "type-check": "tsc --noEmit",
+        "check": "biome check ."
+    },
+    "devDependencies": {
+        "@axe-core/playwright": "^4.11.3",
+        "@biomejs/biome": "2.4.16",
+        "@playwright/test": "^1.60.0",
+        "@types/node": "^24.13.2",
+        "typescript": "5.7.2"
+    },
+    "volta": {
+        "node": "24.18.0"
+    },
+    "engines": {
+        "node": ">=24.0.0 <25.0.0",
+        "npm": ">=11.0.0"
+    }
+}

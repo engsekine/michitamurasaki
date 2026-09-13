@@ -12,7 +12,8 @@ test.beforeEach(async ({ context }) => {
 });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const APP_DIR = join(__dirname, '..', '..', 'src', 'app');
+/** service-front の App Router ディレクトリ（e2e/service-front/a11y/ からリポジトリルート経由で参照） */
+const APP_DIR = join(__dirname, '..', '..', '..', 'service-front', 'src', 'app');
 
 /** 認証必須の route group は別ファイルで扱うのでここでは対象外（(onboarding) も認証必須） */
 const EXCLUDED_GROUPS = new Set(['(authenticated)', '(onboarding)']);
