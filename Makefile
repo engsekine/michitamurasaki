@@ -11,7 +11,7 @@ CLAUDE_TARGETS := skills agents rules
         front-type-check \
         front-test front-test-watch front-test-coverage \
         front-test-storybook front-test-all \
-        e2e e2e-ui e2e-a11y e2e-service e2e-admin e2e-install \
+        e2e e2e-ui e2e-watch e2e-a11y e2e-service e2e-admin e2e-install \
         front-storybook front-build-storybook front-ci-storybook \
         front-validate \
         admin-cert admin-clean-cert \
@@ -117,6 +117,10 @@ e2e:
 e2e-ui:
 	npm run test:ui --workspace e2e
 
+## E2E watch モード（spec を保存するたびに変更したファイルのテストを再実行。Ctrl+C で終了）
+e2e-watch:
+	npm run test:watch --workspace e2e
+
 ## a11y E2E（両アプリの a11y/ 配下のみ）
 e2e-a11y:
 	npm run test:a11y --workspace e2e
@@ -216,6 +220,7 @@ help:
 	@echo "  make e2e-admin              E2E テスト（admin-front のみ）"
 	@echo "  make e2e-a11y               a11y E2E テスト（両アプリ）"
 	@echo "  make e2e-ui                 E2E テスト (UI モード)"
+	@echo "  make e2e-watch              E2E テスト (watch: spec 保存で再実行)"
 	@echo "  make e2e-install            Playwright ブラウザのインストール（初回）"
 	@echo "  make front-validate         すべてのチェックを実行"
 	@echo ""
