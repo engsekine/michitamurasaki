@@ -12,6 +12,8 @@ const buildDive = (overrides: Partial<Dive> = {}): Dive => ({
     location: '伊豆 / 大瀬崎',
     diveSiteId: null,
     diveSite: null,
+    diveShopId: null,
+    shop: null,
     diveType: 'boat',
     weather: '晴れ',
     airTempC: 24,

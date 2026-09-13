@@ -1,16 +1,21 @@
 'use client';
 
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button } from '@repo/ui/components/button';
 import Link from 'next/link';
 import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
-
+import { GoogleAuthButton } from '@/features/auth/components/client/GoogleAuthButton';
 import { type LoginFormValues, loginSchema } from '@/features/auth/schemas/login.schema';
 import { signIn } from '@/features/auth/server/actions';
 import { FormField } from '@/shared/components/form';
+import { Button } from '@/shared/components/ui/Button';
 
-export const LoginForm = () => {
+interface LoginFormProps {
+    /** コールバックの error クエリに対応する表示用メッセージ（016-google-login） */
+    initialError?: string | undefined;
+}
+
+export const LoginForm = ({ initialError }: LoginFormProps = {}) => {
     const [isPending, startTransition] = useTransition();
 
     const {
@@ -34,6 +39,12 @@ export const LoginForm = () => {
 
     return (
         <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+            {initialError && (
+                <div role="alert" className="text-red-600 text-sm">
+                    {initialError}
+                </div>
+            )}
+
             <FormField
                 id="email"
                 label="メールアドレス"
@@ -63,6 +74,14 @@ export const LoginForm = () => {
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
                 {isPending ? 'ログイン中...' : 'ログイン'}
             </Button>
+
+            <div className="flex items-center gap-3 text-muted-foreground text-xs">
+                <span className="h-px flex-1 bg-border" />
+                または
+                <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <GoogleAuthButton label="Google でログイン" />
 
             <div className="flex flex-col gap-2 text-muted-foreground text-sm">
                 <Link href="/signup" className="underline hover:text-foreground">

@@ -1,14 +1,17 @@
 'use client';
 
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button } from '@repo/ui/components/button';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
-
+import { GoogleAuthButton } from '@/features/auth/components/client/GoogleAuthButton';
+import { ResendConfirmationButton } from '@/features/auth/components/client/ResendConfirmationButton';
+import { TermsAgreementField } from '@/features/auth/components/client/TermsAgreementField';
 import { type SignupFormValues, signupSchema } from '@/features/auth/schemas/signup.schema';
 import { signUp } from '@/features/auth/server/actions';
-import { FormField, FormRadioGroup } from '@/shared/components/form';
+import { EmailOptInField, FormField, FormRadioGroup } from '@/shared/components/form';
+import { Button } from '@/shared/components/ui/Button';
+import { DIVER_TYPE_OPTIONS } from '@/shared/constants/diver-type';
 import { DEFAULT_GENDER, GENDER_OPTIONS } from '@/shared/constants/gender';
 
 export const SignupForm = () => {
@@ -18,12 +21,15 @@ export const SignupForm = () => {
     const {
         register,
         handleSubmit,
+        watch,
         setError,
         formState: { errors },
     } = useForm<SignupFormValues>({
         resolver: yupResolver(signupSchema),
         defaultValues: { gender: DEFAULT_GENDER },
     });
+
+    const isInstructor = watch('diverType') === 'instructor';
 
     const onSubmit = handleSubmit((values) => {
         startTransition(async () => {
@@ -35,10 +41,15 @@ export const SignupForm = () => {
                 lastNameRomaji: values.lastNameRomaji,
                 firstNameRomaji: values.firstNameRomaji,
                 nickname: values.nickname,
+                handle: values.handle,
                 birthOn: values.birthOn,
                 gender: values.gender,
                 heightCm: values.heightCm,
                 weightKg: values.weightKg,
+                agreedToTerms: values.agreedToTerms,
+                diverType: values.diverType,
+                diverNumber: values.diverNumber ?? null,
+                emailOptIn: values.emailOptIn,
             });
             if (!result.success) {
                 setError('root', { message: result.error });
@@ -60,8 +71,9 @@ export const SignupForm = () => {
                     メール内のリンクをクリックして登録を完了してください。
                 </p>
                 <p className="text-muted-foreground text-sm">
-                    メールが届かない場合は、迷惑メールフォルダもご確認ください。
+                    メールが届かない場合は、迷惑メールフォルダもご確認のうえ、下のボタンから再送してください。
                 </p>
+                <ResendConfirmationButton email={sentTo} />
                 <Link href="/login" className="text-muted-foreground text-sm underline hover:text-foreground">
                     ログイン画面に戻る
                 </Link>
@@ -134,6 +146,20 @@ export const SignupForm = () => {
             />
 
             <FormField
+                id="handle"
+                label="ユーザー ID"
+                type="text"
+                autoComplete="off"
+                aria-required="true"
+                placeholder="例: taro-diver"
+                error={errors.handle?.message}
+                {...register('handle')}
+            />
+            <p className="text-muted-foreground text-xs">
+                半角英小文字・数字・ハイフン・アンダースコアの 3〜30 文字（先頭は英字）。プロフィールの URL に使われます
+            </p>
+
+            <FormField
                 id="birthOn"
                 label="生年月日"
                 type="date"
@@ -146,10 +172,31 @@ export const SignupForm = () => {
             <FormRadioGroup
                 legend="性別"
                 options={GENDER_OPTIONS}
+                required
                 aria-required="true"
                 error={errors.gender?.message}
                 {...register('gender')}
             />
+
+            <FormRadioGroup
+                legend="ダイバー種別"
+                options={DIVER_TYPE_OPTIONS}
+                required
+                aria-required="true"
+                error={errors.diverType?.message}
+                {...register('diverType')}
+            />
+
+            {isInstructor && (
+                <FormField
+                    id="diverNumber"
+                    label="ダイバー番号"
+                    type="text"
+                    autoComplete="off"
+                    error={errors.diverNumber?.message}
+                    {...register('diverNumber')}
+                />
+            )}
 
             <div className="grid grid-cols-2 gap-3">
                 <FormField
@@ -209,6 +256,14 @@ export const SignupForm = () => {
                 {...register('passwordConfirm')}
             />
 
+            <TermsAgreementField
+                id="agreedToTerms"
+                error={errors.agreedToTerms?.message}
+                {...register('agreedToTerms')}
+            />
+
+            <EmailOptInField id="emailOptIn" error={errors.emailOptIn?.message} {...register('emailOptIn')} />
+
             {errors.root && (
                 <div role="alert" className="text-red-600 text-sm">
                     {errors.root.message}
@@ -218,6 +273,14 @@ export const SignupForm = () => {
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
                 {isPending ? '登録中...' : '新規登録'}
             </Button>
+
+            <div className="flex items-center gap-3 text-muted-foreground text-xs">
+                <span className="h-px flex-1 bg-border" />
+                または
+                <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <GoogleAuthButton label="Google で続行" />
 
             <Link href="/login" className="text-muted-foreground text-sm underline hover:text-foreground">
                 ログインはこちら

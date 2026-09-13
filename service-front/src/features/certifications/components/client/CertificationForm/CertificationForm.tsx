@@ -1,12 +1,10 @@
 'use client';
 
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button, buttonVariants } from '@repo/ui/components/button';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
-
 import { AGENCIES, AGENCY_LABELS } from '@/features/certifications/constants';
 import {
     type CertificationFormValues,
@@ -14,6 +12,7 @@ import {
 } from '@/features/certifications/schemas/certification.schema';
 import { createCertification, updateCertification } from '@/features/certifications/server/actions';
 import { FormField, FormSelect, type FormSelectOption } from '@/shared/components/form';
+import { Button, buttonVariants } from '@/shared/components/ui/Button';
 
 interface CertificationFormProps {
     /** 編集対象の資格 ID（未指定なら新規登録モード） */

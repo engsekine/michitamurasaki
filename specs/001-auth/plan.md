@@ -8,7 +8,7 @@
 
 ## Summary
 
-メール + パスワードによる認証（サインアップ / ログイン / ログアウト / パスワードリセット / 認証ガード）を Supabase Auth で実現する。Next.js App Router 上で Server Actions（signIn / signUp / signOut / requestPasswordReset）を実装し、ミドルウェアで認証必須ルートを保護する。サインアップはメール確認フロー（確認メール → `/api/auth/callback` でセッション発行 → `/dives`）を採用し、プロフィール属性は `auth.users` の insert トリガー経由で `public.users` / `public.user_details` に保存する。
+メール + パスワードによる認証（サインアップ / ログイン / ログアウト / パスワードリセット / 認証ガード）を Supabase Auth で実現する。Next.js App Router 上で Server Actions（signIn / signUp / signOut / requestPasswordReset）を実装し、ミドルウェアで認証必須ルートを保護する。サインアップはメール確認フロー（確認メール → `/api/auth/callback` でセッション発行 → TOP（`/`））を採用し、プロフィール属性は `auth.users` の insert トリガー経由で `public.users` / `public.user_details` に保存する。
 
 ## Technical Context
 
@@ -109,7 +109,7 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = ['/login', '/signup'].includes(request.nextUrl.pathname)
 
   if (isAppRoute && !user) return NextResponse.redirect(new URL('/login', request.url))
-  if (isAuthRoute && user) return NextResponse.redirect(new URL('/dives', request.url))
+  if (isAuthRoute && user) return NextResponse.redirect(new URL('/', request.url))
   return NextResponse.next()
 }
 ```
@@ -133,7 +133,7 @@ export const signupSchema = yup.object({
 | Action | 役割 |
 |--------|------|
 | `signIn(email, password)` | Supabase でログイン → セッション cookie 設定 |
-| `signUp(email, password)` | Supabase でユーザー作成 → 確認メール送信（`emailRedirectTo` で `/api/auth/callback?next=/dives` を指定） |
+| `signUp(email, password)` | Supabase でユーザー作成 → 確認メール送信（`emailRedirectTo` で `/api/auth/callback?next=/` を指定） |
 | `signOut()` | セッション破棄 |
 | `requestPasswordReset(email)` | リセットメール送信 |
 
@@ -143,9 +143,9 @@ export const signupSchema = yup.object({
 2. `signUp` Server Action が `supabase.auth.signUp({ email, password, options: { emailRedirectTo } })` を呼ぶ
 3. Supabase が確認メールを送信し、レスポンスは `session = null` で返る
 4. SignupForm はレスポンスの `needsEmailConfirmation` を見て「確認メールを送信しました」表示に切り替え
-5. ユーザーがメール内リンク（`{site_url}/api/auth/callback?code=...&next=/dives`）をクリック
+5. ユーザーがメール内リンク（`{site_url}/api/auth/callback?code=...&next=/`）をクリック
 6. callback route が `exchangeCodeForSession(code)` でセッション cookie を発行
-7. `/dives` にリダイレクト
+7. TOP（`/`）にリダイレクト
 
 ローカル開発時は Inbucket（`http://127.0.0.1:54324`）でメールを確認できる（`supabase/config.toml` の `[inbucket]` 参照）。
 

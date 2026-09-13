@@ -1,31 +1,33 @@
 'use client';
 
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button, buttonVariants } from '@repo/ui/components/button';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
-
 import { type PlanFormValues, planSchema } from '@/features/plans/schemas/plan.schema';
 import { createPlan, updatePlan } from '@/features/plans/server/actions';
-import { FormField, FormTextarea } from '@/shared/components/form';
+import { FormField, FormSelect, FormTextarea } from '@/shared/components/form';
+import { Button, buttonVariants } from '@/shared/components/ui/Button';
 import { todayInJst } from '@/shared/lib/date';
 
 interface PlanFormProps {
     /** 編集対象の予定 ID（未指定なら新規作成モード） */
     planId?: string;
     defaultValues?: Partial<PlanFormValues>;
+    /** ショップ選択肢（033）。page 側で features/shops から取得して注入する（feature 間 import 禁止のため） */
+    shopOptions?: ReadonlyArray<{ id: string; name: string }>;
 }
 
 const createDefaultValues = (overrides?: Partial<PlanFormValues>): PlanFormValues => ({
     plannedOn: todayInJst(),
     location: '',
     notes: null,
+    diveShopId: null,
     ...overrides,
 });
 
-export const PlanForm = ({ planId, defaultValues }: PlanFormProps) => {
+export const PlanForm = ({ planId, defaultValues, shopOptions = [] }: PlanFormProps) => {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [serverError, setServerError] = useState<string | null>(null);
@@ -99,6 +101,24 @@ export const PlanForm = ({ planId, defaultValues }: PlanFormProps) => {
                 autoComplete="off"
                 {...register('location')}
             />
+
+            {shopOptions.length > 0 ? (
+                <FormSelect
+                    id="diveShopId"
+                    label="ショップ"
+                    options={shopOptions.map((shop) => ({ value: shop.id, label: shop.name }))}
+                    placeholder="選択しない"
+                    error={errors.diveShopId?.message}
+                    {...register('diveShopId')}
+                />
+            ) : (
+                <p className="text-muted-foreground text-sm">
+                    <Link href="/shops/new" className="text-primary underline">
+                        ショップを登録
+                    </Link>
+                    すると予定に紐付けできます
+                </p>
+            )}
 
             <FormTextarea id="notes" label="メモ" rows={4} error={errors.notes?.message} {...register('notes')} />
 

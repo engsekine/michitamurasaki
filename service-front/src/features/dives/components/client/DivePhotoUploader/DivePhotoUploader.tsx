@@ -1,11 +1,10 @@
 'use client';
 
-import { buttonVariants } from '@repo/ui/components/button';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
-
 import { type PhotoFileMeta, photoValidationMessage, validateNewPhotos } from '@/features/dives/lib/photoValidation';
 import { uploadDivePhotos } from '@/features/dives/lib/uploadDivePhotos';
+import { buttonVariants } from '@/shared/components/ui/Button';
 
 interface DivePhotoUploaderProps {
     diveId: string;

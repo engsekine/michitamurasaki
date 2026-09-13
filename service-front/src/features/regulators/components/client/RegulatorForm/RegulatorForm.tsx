@@ -1,16 +1,15 @@
 'use client';
 
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button, buttonVariants } from '@repo/ui/components/button';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
-
 import { OVERHAUL_INTERVAL_DIVES, OVERHAUL_INTERVAL_MONTHS } from '@/features/regulators/constants';
 import { type RegulatorFormValues, regulatorSchema } from '@/features/regulators/schemas/regulator.schema';
 import { createRegulator, updateRegulator } from '@/features/regulators/server/actions';
 import { FormField, FormTextarea } from '@/shared/components/form';
+import { Button, buttonVariants } from '@/shared/components/ui/Button';
 
 interface RegulatorFormProps {
     /** 編集対象のレギュレーター ID（未指定なら新規登録モード） */

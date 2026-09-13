@@ -29,15 +29,13 @@ const buildMonthlyStats = (overrides: Partial<Record<string, Partial<MonthlyDive
     return months.map((month) => ({
         month,
         diveCount: 0,
-        avgWaterTempC: null,
-        maxDepthM: null,
         ...overrides[month],
     }));
 };
 
 const monthlyStats = buildMonthlyStats({
-    '2025-08': { diveCount: 5, avgWaterTempC: 27.5, maxDepthM: 24.0 },
-    '2026-02': { diveCount: 2, avgWaterTempC: 16.0, maxDepthM: 30.5 },
+    '2025-08': { diveCount: 5 },
+    '2026-02': { diveCount: 2 },
 });
 
 describe('DiveTrends', () => {
@@ -48,6 +46,11 @@ describe('DiveTrends', () => {
             expect(
                 screen.getByRole('heading', { level: 3, name: '月別ダイビング本数（直近 12 ヶ月）' }),
             ).toBeInTheDocument();
+        });
+
+        it('本数のカードは 2 枚のみ（深度・水温・潜水時間・累積のカードは表示しない）', () => {
+            render(<DiveTrends yearlyCounts={yearlyCounts} monthlyStats={monthlyStats} />);
+            expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(2);
         });
 
         it('年別グラフの aria-label に年と本数の要約を含む', () => {
@@ -62,36 +65,6 @@ describe('DiveTrends', () => {
                 screen.getByRole('heading', { level: 3, name: '月別ダイビング本数（直近 12 ヶ月）' }),
             ).toBeInTheDocument();
             expect(screen.queryByText(/ログを記録すると統計が表示され/)).not.toBeInTheDocument();
-        });
-    });
-
-    describe('最大深度の推移（US2）', () => {
-        it('月別最大深度カードを表示する', () => {
-            render(<DiveTrends yearlyCounts={yearlyCounts} monthlyStats={monthlyStats} />);
-            expect(screen.getByRole('heading', { level: 3, name: '月別最大深度（直近 12 ヶ月）' })).toBeInTheDocument();
-        });
-
-        it('深度グラフの aria-label に深度の要約を含む', () => {
-            render(<DiveTrends yearlyCounts={yearlyCounts} monthlyStats={monthlyStats} />);
-            expect(screen.getByRole('img', { name: /月別最大深度/ })).toBeInTheDocument();
-        });
-    });
-
-    describe('水温の傾向（US3）', () => {
-        it('月別平均水温カードを表示する', () => {
-            render(<DiveTrends yearlyCounts={yearlyCounts} monthlyStats={monthlyStats} />);
-            expect(screen.getByRole('heading', { level: 3, name: '月別平均水温（直近 12 ヶ月）' })).toBeInTheDocument();
-        });
-
-        it('水温データが全期間 0 件のときは水温カードのみ空状態を表示する（US3-AC3）', () => {
-            const noTempStats = buildMonthlyStats({ '2026-02': { diveCount: 2, maxDepthM: 30.5 } });
-            render(<DiveTrends yearlyCounts={yearlyCounts} monthlyStats={noTempStats} />);
-
-            expect(screen.getByText(/水温を記録すると傾向が表示され/)).toBeInTheDocument();
-            expect(screen.queryByRole('img', { name: /月別平均水温/ })).not.toBeInTheDocument();
-            // 他のカード（深度・本数）は表示される
-            expect(screen.getByRole('heading', { level: 3, name: '月別最大深度（直近 12 ヶ月）' })).toBeInTheDocument();
-            expect(screen.getByRole('heading', { level: 3, name: '年別ダイビング本数' })).toBeInTheDocument();
         });
     });
 

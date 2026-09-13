@@ -28,8 +28,8 @@ const subtractMonths = (baseMonth: string, offset: number): string => {
 };
 
 /**
- * 月別統計を baseMonth から遡る months 個の連続列に補完する純粋関数（FR-003 / FR-006）。
- * データのない月は本数 0・水温/深度 null（欠測）。rows が空でも常に months 要素を返す
+ * 月別統計を baseMonth から遡る months 個の連続列に補完する純粋関数（FR-003）。
+ * データのない月は本数 0。rows が空でも常に months 要素を返す
  * （無条件 0 埋め — 空状態の判定は呼び出し側が年別集計で行う。research.md R-006）。
  */
 export const fillMonthlyGaps = (rows: MonthlyDiveStat[], baseMonth: string, months: number): MonthlyDiveStat[] => {
@@ -37,6 +37,6 @@ export const fillMonthlyGaps = (rows: MonthlyDiveStat[], baseMonth: string, mont
 
     return Array.from({ length: months }, (_, index) => {
         const month = subtractMonths(baseMonth, months - 1 - index);
-        return statByMonth.get(month) ?? { month, diveCount: 0, avgWaterTempC: null, maxDepthM: null };
+        return statByMonth.get(month) ?? { month, diveCount: 0 };
     });
 };

@@ -1,0 +1,40 @@
+# prod デプロイ（028-deploy-pipeline / US2）
+# 手動実行で起動し、承認者の承認 1 回を経てから prod へ反映する（FR-006 / SC-002）。
+# 自動トリガー（main push）は手動運用への移行で廃止（2026-07-17）。
+# Actions タブの「Run workflow」で main を選んで実行する（他ブランチはガードで弾く）。
+# 承認は required reviewers 付きの Environment `production-approval` をゲートジョブに置いて実現し、
+# シークレットは reviewers なしの `production` に分離する（research 3 の 2 環境方式）。
+name: Deploy (production)
+
+on:
+    workflow_dispatch:
+
+# 同一環境への実行は直列化し、実行中デプロイは完走させる（追い越し防止 / FR-009）
+concurrency:
+    group: deploy-production
+    cancel-in-progress: false
+
+permissions:
+    contents: read
+
+jobs:
+    # 承認だけを担う空ジョブ。ここが承認されるまで prod は一切変更されない（US2-AC2）。
+    # 承認待ちはジョブ開始前に発生するため timeout-minutes は承認待ち時間には適用されない
+    # （承認後の echo 実行にのみ適用。承認の有効期限は GitHub 側の既定 = 30 日）
+    approve:
+        # 手動実行はブランチを自由に選べるため、prod のデプロイ元を main に固定する
+        # （deploy は needs: approve のためガードはここ 1 箇所で連鎖する）
+        if: github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        environment: production-approval
+        steps:
+            - name: Approved
+              run: echo "production deploy approved by reviewer"
+
+    deploy:
+        needs: approve
+        uses: ./.github/workflows/_deploy.yml
+        with:
+            environment: production
+        secrets: inherit

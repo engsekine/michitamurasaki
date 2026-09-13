@@ -26,7 +26,7 @@
 | `user_id` | `uuid` | NO | — | 所有ユーザー。`users(id)` を参照。`on delete cascade` |
 | `agency` | `text` | NO | — | 指導団体。`padi` / `naui` / `ssi` / `bsac` / `cmas` / `other` の 6 値（CHECK 制約） |
 | `rank` | `text` | NO | — | 資格ランク名（自由入力）。trim 後 1 文字以上・60 文字以内 |
-| `acquired_on` | `date` | NO | — | 資格取得日。1900-01-01 〜 当日。「当日」はユーザーのローカル日付基準で yup / Server Action が検証し、DB CHECK は UTC とのズレを許容する安全網（`current_date + 1` まで） |
+| `acquired_on` | `date` | NO | — | 資格取得日。1900-01-01 〜 当日。「当日」は JST 基準（`todayInJst`）で yup / Server Action が検証し、DB CHECK は JST 基準の安全網（`(now() at time zone 'Asia/Tokyo')::date + 1` まで） |
 | `diver_number` | `text` | YES | — | C カードに記載されるダイバーナンバー（任意）。60 文字以内 |
 | `instructor_number` | `text` | YES | — | 認定したインストラクターのナンバー（任意）。60 文字以内 |
 | `trained_by` | `text` | YES | — | 講習を受けた指導者・ショップ名（任意）。120 文字以内 |
@@ -39,11 +39,11 @@
 
 | ルール | 実装場所 | 理由 |
 |--------|---------|------|
-| `acquired_on` ≦ 当日（ユーザーのローカル日付基準） | yup + Server Action | DB の `current_date` は UTC 基準のため、JST の午前中に「今日」を登録すると正当な入力が弾かれうる。厳密な未来日付拒否はアプリ層で行い、DB CHECK は `current_date + 1` の安全網とする |
+| `acquired_on` ≦ 当日（JST 基準・`todayInJst`） | yup + Server Action | 厳密な未来日付拒否はアプリ層で行う。DB CHECK は JST 基準（`(now() at time zone 'Asia/Tokyo')::date + 1`）の安全網とし、`+1` でタイムゾーン端の余裕を残す（`20260701090000_alter_date_checks_to_jst.sql` で UTC `current_date` から JST へ統一） |
 | `acquired_on` ≧ `user_details.birth_on` | Server Action | クロステーブル参照のため CHECK 制約にできない（[research.md R4](research.md)）。`user_details` が取得できない場合は登録・更新を拒否してエラー表示する |
 | 重複登録時のユーザー向けエラーメッセージ | Server Action | 一意制約違反（23505）を捕捉して変換（[research.md R5](research.md)） |
 | スペシャリティタグの個数上限（10 個） | yup | 個数は DB 制約にできないためアプリ層で制限。タグ 1 つの文字数（30 文字）は `certification_tags` の CHECK と二重に検証 |
-| `dive_id` が自分のダイブログであること | Server Action | FK 制約はログの存在しか保証しない。RLS スコープの select で「自分のログとして見えるか」を確認し、他人の ID は「見つかりません」として拒否 |
+| `dive_id` が自分のダイブログであること | Server Action | FK 制約はログの存在しか保証しない。`user_id` の明示条件付き select で本人所有を検証し（021 の公開読み取りポリシー以降、RLS スコープだけでは他人の公開ログが可視のため）、他人の ID は「見つかりません」として拒否 |
 
 ## 3. 制約・インデックス
 
@@ -54,7 +54,7 @@
 | `certifications_user_id_agency_rank_key` | ユニーク | `(user_id, agency, rank)` — 同一団体・同一ランクの重複登録防止 |
 | `certifications_agency_check` | CHECK | `agency in ('padi', 'naui', 'ssi', 'bsac', 'cmas', 'other')` |
 | `certifications_rank_check` | CHECK | `length(trim(rank)) > 0 and char_length(rank) <= 60` |
-| `certifications_acquired_on_check` | CHECK | `acquired_on >= '1900-01-01' and acquired_on <= current_date + 1`（+1 はタイムゾーン差の許容。厳密な当日判定はアプリ層） |
+| `certifications_acquired_on_check` | CHECK | `acquired_on >= '1900-01-01' and acquired_on <= (now() at time zone 'Asia/Tokyo')::date + 1`（JST 基準。+1 はタイムゾーン端の許容。厳密な当日判定はアプリ層） |
 | `idx_certifications_user_id_acquired_on` | インデックス | `(user_id, acquired_on desc)` — 一覧の取得日降順表示用。同日取得は `created_at desc` を第 2 ソートキーとする（クエリ側で指定） |
 | `certifications_dive_id_fkey` | 外部キー | `dive_id references public.dives(id) on delete set null` |
 | `idx_certifications_dive_id` | インデックス | `(dive_id)` — 外部キーカラム用 |

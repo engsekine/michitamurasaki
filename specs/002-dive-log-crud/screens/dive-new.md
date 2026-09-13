@@ -53,6 +53,8 @@
 | E4 | キャンセルボタン | リンクボタン | `キャンセル` | `/dives` |
 | E5 | 保存ボタン | submit ボタン | `保存する` | `disabled`：送信中 / 必須欠落 |
 | E6 | エラーサマリー | 領域 | バリデーション失敗時の集約 | `role="alert"`、最上部にスクロール |
+| E7 | 残枠バッジ | `CreditBalanceBadge`（リンク） | `残りログ枠 N` | タイトル横に表示。/settings/log-credits への導線を兼ねる（026 / FR-013） |
+| E8 | 残枠 0 バナー | `NoCreditBanner` | `ログ枠がありません` + ボーナス説明 + 購入導線 | 残枠 0 の初期表示または送信拒否時のみ。`role="alert"`（026 / FR-002） |
 
 ### 項目定義（フォーム）
 
@@ -63,28 +65,28 @@
 | 基本情報 | ダイブ番号 | number |  | 0 以上の整数 | `dives.dive_number`。初期値は自身の過去最大 +1（過去ログなしなら 1） |
 | 基本情報 | 潜水日 `*` | date | ✓ | 必須 / 1900-01-01 〜 今日（JST）の範囲 | `dives.dive_date`。デフォルト値は **日本時間（JST）の今日**。実行端末のタイムゾーンに依存しない |
 | 基本情報 | ポイント名 `*` | text | ✓ | 必須 / 120 文字以内 | `dives.location`。`例: 石垣島・米原` |
-| 基本情報 | エントリー時刻 | time |  | `exit_time` より前 | `dives.entry_time` |
-| 基本情報 | エキジット時刻 | time |  | `entry_time` より後 | `dives.exit_time` |
+| 基本情報 | エントリー時刻 | time |  | HH:MM 形式 | `dives.entry_time`。エキジットとの前後関係は検証しない（日跨ぎを許容） |
+| 基本情報 | エキジット時刻 | time |  | HH:MM 形式 | `dives.exit_time`。`exit < entry` は日跨ぎとみなし潜水時間の自動計算で +24h 扱い（`lib/calcBottomTime.ts`） |
 | 基本情報 | ダイブ形態 | select |  | `constants.diveTypes` | ボート / ビーチ / ドリフト |
 | 基本情報 | 講習ダイブ | checkbox |  | - | `dives.certification_dive` |
-| コンディション | 天気 | select |  | `constants.weathers` | 晴 / 曇 / 雨 など |
-| コンディション | 気温（℃） | number |  | -50〜50、小数 1 桁 | `dives.air_temp_c` |
-| コンディション | 水温（℃） | number |  | -2〜40、小数 1 桁 | `dives.water_temp_c` |
-| コンディション | 透明度（m） | number |  | 0〜80、小数 1 桁 | `dives.visibility_m` |
-| コンディション | 波 | select |  | `constants.waves` | なし / 弱 / 強 |
-| コンディション | 流れ | select |  | `constants.currents` | なし / 弱 / 強 |
-| 潜水データ | 最大水深（m）`*` | number | ✓ | > 0 / ≤ 200 / 小数 2 桁 | `dives.max_depth_m` |
+| コンディション | 天気 | text |  | 60 文字以内 | `dives.weather`。自由記述 |
+| コンディション | 気温（℃） | number |  | -30〜60、小数 1 桁 | `dives.air_temp_c` |
+| コンディション | 水温（℃） | number |  | -5〜45、小数 1 桁 | `dives.water_temp_c` |
+| コンディション | 透明度（m） | number |  | 0〜100、小数 1 桁 | `dives.visibility_m` |
+| コンディション | 波 | text |  | 60 文字以内 | `dives.wave`。自由記述 |
+| コンディション | 流れ | text |  | 60 文字以内 | `dives.current_condition`。自由記述 |
+| 潜水データ | 最大水深（m）`*` | number | ✓ | > 0 / ≤ 300 / 小数 2 桁 | `dives.max_depth_m` |
 | 潜水データ | 平均水深（m） | number |  | 0〜`max_depth_m` / 小数 2 桁 | `dives.avg_depth_m` |
 | 潜水データ | 潜水時間（分）`*` | number | ✓ | 整数 ≥ 1 / ≤ 1440 | `dives.bottom_time_min`。エントリー時刻 + エキジット時刻が揃うと自動計算で初期セット。手動編集後は自動更新を停止（編集モードで既存値があるときも同様）。日跨ぎ（exit < entry）は +24h で計算 |
 | 装備・ガス | タンク種別 | select |  | `constants.TANK_TYPE_OPTIONS`（アルミ / スチール） | `dives.tank_type`。値は `aluminum` / `steel` |
-| 装備・ガス | タンク容量（L） | number |  | 0〜30、小数 1 桁 | `dives.tank_volume_l` |
-| 装備・ガス | ガス種別 | select |  | Air / Nitrox | `dives.gas_type` |
-| 装備・ガス | 酸素濃度（%） | number |  | 21〜100、ガス種別 = Nitrox のみ表示 | `dives.o2_percent` |
-| 装備・ガス | 開始残圧（bar） | number |  | 整数 0〜300 | `dives.pressure_start_bar` |
-| 装備・ガス | 終了残圧（bar） | number |  | 整数 0〜`pressure_start_bar` | `dives.pressure_end_bar` |
+| 装備・ガス | タンク容量（L） | number |  | > 0 / ≤ 50、小数 1 桁 | `dives.tank_volume_l`。デフォルト 10 |
+| 装備・ガス | ガス種別 | text |  | 40 文字以内 | `dives.gas_type`。`constants.GAS_TYPE_OPTIONS`（Air / Nitrox / Trimix / その他）を候補としつつ自由テキストも許容。デフォルト `air` |
+| 装備・ガス | 酸素濃度（%） | number |  | 0〜100 | `dives.o2_percent`。デフォルト 21 |
+| 装備・ガス | 開始残圧（bar） | number |  | 整数 0〜400 | `dives.pressure_start_bar` |
+| 装備・ガス | 終了残圧（bar） | number |  | 整数 0〜400 / `pressure_start_bar` 以下 | `dives.pressure_end_bar` |
 | 装備・ガス | ウェイト（kg） | number |  | 0〜30、小数 1 桁 | `dives.weight_kg` |
 | 装備・ガス | スーツ | text |  | 40 文字以内 | `例: ウェット 5mm`。自由記述（旧 select は廃止） |
-| 装備・ガス | 装備メモ | textarea |  | 500 文字以内 | `dives.equipment_notes` |
+| 装備・ガス | 装備メモ | textarea |  | 1000 文字以内 | `dives.equipment_notes` |
 | メンバー | バディ | text |  | 100 文字以内 | `dives.buddy_name` |
 | メンバー | インストラクター | text |  | 100 文字以内 | `dives.instructor_name` |
 | メモ | メモ | textarea |  | 2000 文字以内 | `dives.notes` |
@@ -99,6 +101,7 @@
 | 送信中 | E5 押下後 | フォーム全体 `disabled`、E5 にスピナー |
 | 送信成功 | Server Action 成功 | `/dives/[新規 id]` へリダイレクト + トースト |
 | 送信エラー | Server Action 失敗 | E6 にサーバーエラーを表示、フォームは維持 |
+| 残枠 0（026） | ログ枠残高 0 で表示、または送信が `code: 'no_credit'` で拒否 | E8 NoCreditBanner を表示（入力値は保持）。エラーサマリーには出さない |
 | 未認証 | セッションなし | `/login` へリダイレクト |
 
 ## 4. 操作・遷移
@@ -124,14 +127,15 @@ graph LR
 |------|------|-----------|
 | 潜水日 | 未入力 | `潜水日を入力してください` |
 | 潜水日 | 未来日 / 1900-01-01 未満 | `正しい日付を入力してください`（上限は JST 基準の今日） |
-| ポイント名 | 未入力 | `ポイント名を入力してください` |
+| ポイント名 | ポイント未選択かつ未入力 | `ポイントを選択するか、ポイント名を入力してください` |
 | ポイント名 | 121 文字以上 | `ポイント名は120文字以内で入力してください` |
-| 最大水深 | 未入力 / 0 以下 | `最大水深を 1 m 以上で入力してください` |
-| 最大水深 | 200 超 | `最大水深は 200 m までです` |
+| 最大水深 | 未入力 | `最大水深を入力してください` |
+| 最大水深 | 0 以下 | `最大水深は0より大きい値を入力してください` |
+| 最大水深 | 300 超 | `最大水深は300m以下で入力してください` |
 | 平均水深 | 最大水深超 | `平均水深は最大水深以下で入力してください` |
-| 潜水時間 | 未入力 / 0 以下 | `潜水時間を 1 分以上で入力してください` |
-| エキジット時刻 | エントリー時刻以前 | `エキジットはエントリーより後にしてください` |
-| 終了残圧 | 開始残圧超 | `終了残圧は開始残圧以下にしてください` |
+| 潜水時間 | 未入力 | `潜水時間を入力してください` |
+| 潜水時間 | 1 未満 | `潜水時間は1分以上で入力してください` |
+| 終了残圧 | 開始残圧超 | `終了残圧は開始残圧以下で入力してください` |
 
 サーバーエラー（5xx・ネットワーク）は E6 に `しばらく経ってからもう一度お試しください` を表示。
 

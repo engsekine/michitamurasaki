@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation';
 
 import { getPlan, PlanForm } from '@/features/plans';
+import { getShopOptions } from '@/features/shops';
 import { Breadcrumbs } from '@/shared/components/layout/Breadcrumbs';
+import { Heading } from '@/shared/components/typography/Heading';
 import { generatePageMetadata } from '@/shared/config/metadata';
 
 interface EditPlanPageProps {
@@ -22,7 +24,8 @@ export const generateMetadata = async ({ params }: EditPlanPageProps) => {
 
 export default async function EditPlanPage({ params }: EditPlanPageProps) {
     const { id } = await params;
-    const plan = await getPlan(id);
+    // ショップ選択肢は page 合成で注入する（feature 間 import 禁止 / 033 research.md Decision 5）
+    const [plan, shopOptions] = await Promise.all([getPlan(id), getShopOptions()]);
     if (!plan) notFound();
 
     return (
@@ -35,10 +38,16 @@ export default async function EditPlanPage({ params }: EditPlanPageProps) {
                 ]}
             />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
-                <h1 className="font-semibold text-2xl">ダイビング予定の編集</h1>
+                <Heading level={1}>ダイビング予定の編集</Heading>
                 <PlanForm
                     planId={id}
-                    defaultValues={{ plannedOn: plan.plannedOn, location: plan.location, notes: plan.notes }}
+                    defaultValues={{
+                        plannedOn: plan.plannedOn,
+                        location: plan.location,
+                        notes: plan.notes,
+                        diveShopId: plan.diveShopId,
+                    }}
+                    shopOptions={shopOptions}
                 />
             </div>
         </div>

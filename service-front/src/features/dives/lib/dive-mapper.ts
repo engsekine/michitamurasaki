@@ -4,19 +4,22 @@
 import type { Database } from '@repo/supabase';
 
 import type { TankTypeValue } from '@/features/dives/constants';
-import type { Dive, DiveSiteRef } from '@/features/dives/types';
+import type { Dive, DiveShopRef, DiveSiteRef } from '@/features/dives/types';
 import { toNumber } from '@/shared/lib/number';
 
 type DiveRow = Database['public']['Tables']['dives']['Row'];
 
-/** dive_sites を to-one 結合した行（`dive_site:dive_sites(...)`） */
-export type DiveRowWithSite = DiveRow & { dive_site: DiveSiteRef | null };
+/** dive_sites / dive_shops を to-one 結合した行（`dive_site:dive_sites(...)` / `dive_shop:dive_shops(...)`） */
+export type DiveRowWithSite = DiveRow & { dive_site: DiveSiteRef | null; dive_shop?: DiveShopRef | null };
 
 /** dives に結合するダイブサイトの select 句（表示名解決用） */
 export const DIVE_SITE_JOIN = 'dive_site:dive_sites(id, name, area)';
 
-/** dives の全カラム + dive_site 結合の select 句（詳細・エクスポートで全項目を取得する） */
-export const DIVE_FULL_COLUMNS = `*, ${DIVE_SITE_JOIN}`;
+/** dives に結合するショップの select 句（033。RLS により本人のショップ以外は null になる） */
+export const DIVE_SHOP_JOIN = 'dive_shop:dive_shops(id, name)';
+
+/** dives の全カラム + dive_site / dive_shop 結合の select 句（詳細・エクスポートで全項目を取得する） */
+export const DIVE_FULL_COLUMNS = `*, ${DIVE_SITE_JOIN}, ${DIVE_SHOP_JOIN}`;
 
 /**
  * DB の snake_case 行をドメイン型 Dive に変換する。
@@ -32,6 +35,8 @@ export const mapDive = (row: DiveRowWithSite): Dive => ({
     location: row.location,
     diveSiteId: row.dive_site_id,
     diveSite: row.dive_site ? { id: row.dive_site.id, name: row.dive_site.name, area: row.dive_site.area } : null,
+    diveShopId: row.dive_shop_id,
+    shop: row.dive_shop ? { id: row.dive_shop.id, name: row.dive_shop.name } : null,
     diveType: row.dive_type,
     weather: row.weather,
     airTempC: toNumber(row.air_temp_c),

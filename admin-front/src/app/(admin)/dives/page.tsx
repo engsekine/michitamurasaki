@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { type DiveListRow, listDives } from '@/features/dives-admin';
+import { DIVE_SORTABLE_COLUMNS, type DiveListRow, listDives } from '@/features/dives-admin';
 import { type Column, DataTable } from '@/shared/components/table/DataTable';
 import { Pagination } from '@/shared/components/table/Pagination';
 import { TableSearchBar } from '@/shared/components/table/TableSearchBar';
@@ -20,13 +20,11 @@ export const metadata = generatePageMetadata({
     description: 'ダイブログの一覧',
 });
 
-const SORTABLE = ['dive_date', 'created_at', 'max_depth_m'];
-
 export default async function DivesPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
     const sp = await searchParams;
     const page = parsePage(firstParam(sp, 'page'));
     const search = parseSearch(firstParam(sp, 'search'));
-    const sort = parseSort(firstParam(sp, 'sort'), firstParam(sp, 'dir'), SORTABLE);
+    const sort = parseSort(firstParam(sp, 'sort'), firstParam(sp, 'dir'), DIVE_SORTABLE_COLUMNS);
 
     const { rows, total, perPage } = await listDives({ page, perPage: DEFAULT_PER_PAGE, search, sort });
 

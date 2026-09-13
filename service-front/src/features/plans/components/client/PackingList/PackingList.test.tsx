@@ -7,12 +7,14 @@ import type { PackingItem } from '@/features/plans/types';
 const togglePackingItem = vi.fn();
 const addPackingItem = vi.fn();
 const deletePackingItem = vi.fn();
+const completePacking = vi.fn();
 const routerRefresh = vi.fn();
 
 vi.mock('@/features/plans/server/actions', () => ({
     togglePackingItem: (...args: unknown[]) => togglePackingItem(...args),
     addPackingItem: (...args: unknown[]) => addPackingItem(...args),
     deletePackingItem: (...args: unknown[]) => deletePackingItem(...args),
+    completePacking: (...args: unknown[]) => completePacking(...args),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -25,6 +27,7 @@ const createItem = (overrides: Partial<PackingItem> = {}): PackingItem => ({
     id: 'item-1',
     name: 'マスク',
     isChecked: false,
+    isConfirmed: false,
     position: 0,
     ...overrides,
 });
@@ -40,7 +43,42 @@ describe('PackingList', () => {
         togglePackingItem.mockReset();
         addPackingItem.mockReset();
         deletePackingItem.mockReset();
+        completePacking.mockReset();
         routerRefresh.mockReset();
+    });
+
+    it('canComplete=true かつ持ち物ありのとき「準備完了にする」ボタンを表示し、クリックで completePacking を呼ぶ', async () => {
+        completePacking.mockResolvedValueOnce({ success: true });
+        const user = userEvent.setup();
+        render(<PackingList planId="plan-1" items={defaultItems} canComplete />);
+
+        await user.click(screen.getByRole('button', { name: '準備完了にする' }));
+
+        expect(completePacking).toHaveBeenCalledWith('plan-1');
+        expect(routerRefresh).toHaveBeenCalled();
+    });
+
+    it('持ち物が 0 件のときは canComplete=true でも「準備完了にする」ボタンを表示しない（FR-007）', () => {
+        render(<PackingList planId="plan-1" items={[]} canComplete />);
+
+        expect(screen.queryByRole('button', { name: '準備完了にする' })).not.toBeInTheDocument();
+    });
+
+    it('canComplete 未指定（終了済み予定など）では「準備完了にする」ボタンを表示しない（FR-009）', () => {
+        render(<PackingList planId="plan-1" items={defaultItems} />);
+
+        expect(screen.queryByRole('button', { name: '準備完了にする' })).not.toBeInTheDocument();
+    });
+
+    it('completePacking が失敗すると role="alert" でエラーを表示する', async () => {
+        completePacking.mockResolvedValueOnce({ success: false, error: '持ち物がないため完了できません' });
+        const user = userEvent.setup();
+        render(<PackingList planId="plan-1" items={defaultItems} canComplete />);
+
+        await user.click(screen.getByRole('button', { name: '準備完了にする' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('持ち物がないため完了できません');
+        expect(routerRefresh).not.toHaveBeenCalled();
     });
 
     it('チェック済み件数 / 全件数を aria-live 領域に表示する', () => {

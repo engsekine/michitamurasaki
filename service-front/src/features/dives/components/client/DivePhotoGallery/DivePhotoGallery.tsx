@@ -1,11 +1,10 @@
 'use client';
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@repo/ui/components/dialog';
 import Image from 'next/image';
-
 import { DeleteDivePhotoButton } from '@/features/dives/components/client/DeleteDivePhotoButton';
 import type { DivePhotoView } from '@/features/dives/types';
 import { PhotoThumbnail } from '@/shared/components/media/PhotoThumbnail';
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/shared/components/ui/Dialog';
 
 interface DivePhotoGalleryProps {
     /** 表示順に並んだ写真（署名 URL 解決済み）。0 枚なら何も描画しない */

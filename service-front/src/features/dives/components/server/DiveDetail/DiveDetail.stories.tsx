@@ -53,6 +53,11 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = { args: { dive: baseDive } };
 
+/** 公開中のログ。SNS 共有ボタン（X / Facebook / Instagram）が表示される（spec 035。閲覧者視点 = canManage なし） */
+export const PublicDive: Story = {
+    args: { dive: { ...baseDive, isPublic: true } },
+};
+
 /** 新月直後の日付（2000-01-07）で「大潮」ラベルが付くケース */
 export const SpringTide: Story = {
     args: { dive: { ...baseDive, diveDate: '2000-01-07' } },

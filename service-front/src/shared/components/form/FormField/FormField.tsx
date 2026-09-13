@@ -1,5 +1,5 @@
-import { Input } from '@repo/ui/components/input';
 import type { ComponentPropsWithRef } from 'react';
+import { Input } from '@/shared/components/ui/Input';
 
 interface FormFieldProps extends ComponentPropsWithRef<'input'> {
     id: string;

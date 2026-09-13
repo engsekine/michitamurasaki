@@ -72,7 +72,7 @@ describe('DeleteRegulatorButton', () => {
         expect(routerPush).not.toHaveBeenCalled();
     });
 
-    it('deleteRegulator が失敗するとエラーメッセージを表示しダイアログを閉じない', async () => {
+    it('deleteRegulator が失敗するとダイアログを閉じてエラーメッセージを表示し再フェッチしない', async () => {
         deleteRegulator.mockResolvedValueOnce({ success: false, error: '削除に失敗しました' });
         const user = userEvent.setup();
         render(<DeleteRegulatorButton regulatorId="r1" name="SCUBAPRO MK25 EVO" />);
@@ -81,7 +81,7 @@ describe('DeleteRegulatorButton', () => {
         await user.click(screen.getByRole('button', { name: '削除する' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('削除に失敗しました');
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(routerRefresh).not.toHaveBeenCalled();
     });
 });

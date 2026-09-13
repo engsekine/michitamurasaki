@@ -1,9 +1,10 @@
+import { Heading } from '@/shared/components/typography/Heading';
 import { COPYRIGHT_HOLDER } from '@/shared/constants/site';
 
 export const PrivacyPolicyView = () => {
     return (
         <article className="mx-auto max-w-3xl px-4 py-16">
-            <h1 className="font-bold text-3xl text-foreground tracking-tight">プライバシーポリシー</h1>
+            <Heading level={1}>プライバシーポリシー</Heading>
 
             <section className="mt-10 space-y-4">
                 <h2 className="font-semibold text-foreground text-xl">個人情報の収集について</h2>

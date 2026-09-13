@@ -1,15 +1,14 @@
 'use client';
 
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button } from '@repo/ui/components/button';
-import type { KeyboardEvent, WheelEvent } from 'react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-
 import { DIVE_TYPE_OPTIONS } from '@/features/dives/constants';
+import { blockNonIntegerKeys, blurOnWheel } from '@/features/dives/lib/numericInput';
 import { type DiveSearchValues, diveSearchSchema } from '@/features/dives/schemas/dive.schema';
 import type { DiveListFilter } from '@/features/dives/types';
 import { FormField } from '@/shared/components/form';
+import { Button } from '@/shared/components/ui/Button';
 
 interface DiveSearchBarProps {
     initialFilter?: DiveListFilter;
@@ -19,21 +18,8 @@ interface DiveSearchBarProps {
 /** 詳細条件パネルに入るフィルタ（常時表示の番号・ポイント名を除く） */
 const countAdvancedFilters = (filter: DiveListFilter | undefined): number => {
     if (!filter) return 0;
-    const keys: (keyof DiveListFilter)[] = ['dateFrom', 'dateTo', 'depthMin', 'depthMax', 'diveType'];
+    const keys: (keyof DiveListFilter)[] = ['dateFrom', 'dateTo', 'depthMin', 'depthMax', 'diveType', 'buddyName'];
     return keys.filter((key) => filter[key] !== undefined).length;
-};
-
-/** number 入力にホイールでフォーカスしたまま値が変わる事故を防ぐ */
-const blurOnWheel = (e: WheelEvent<HTMLInputElement>) => {
-    e.currentTarget.blur();
-};
-
-/** type=number でも 'e' / '+' / '-' などは入力できてしまうのでブロックする（非負整数用） */
-const BLOCKED_INTEGER_KEYS = new Set(['e', 'E', '+', '-', '.', ',']);
-const blockNonIntegerKeys = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (BLOCKED_INTEGER_KEYS.has(e.key)) {
-        e.preventDefault();
-    }
 };
 
 const ADVANCED_PANEL_ID = 'dive-advanced-filters';
@@ -58,6 +44,7 @@ export const DiveSearchBar = ({ initialFilter, onSubmit: onSubmitFilter }: DiveS
             depthMax: initialFilter?.depthMax ?? null,
             diveType: initialFilter?.diveType ?? null,
             location: initialFilter?.location ?? null,
+            buddyName: initialFilter?.buddyName ?? null,
         },
     });
 
@@ -70,6 +57,7 @@ export const DiveSearchBar = ({ initialFilter, onSubmit: onSubmitFilter }: DiveS
         if (values.depthMax != null) filter.depthMax = values.depthMax;
         if (values.diveType) filter.diveType = values.diveType;
         if (values.location) filter.location = values.location;
+        if (values.buddyName) filter.buddyName = values.buddyName;
         onSubmitFilter(filter);
     });
 
@@ -82,6 +70,7 @@ export const DiveSearchBar = ({ initialFilter, onSubmit: onSubmitFilter }: DiveS
             depthMax: null,
             diveType: null,
             location: null,
+            buddyName: null,
         });
         onSubmitFilter({});
     };
@@ -208,6 +197,16 @@ export const DiveSearchBar = ({ initialFilter, onSubmit: onSubmitFilter }: DiveS
                             ))}
                         </select>
                     </div>
+
+                    {/* バディ名（spec 021 FR-022）: フリーテキスト名の部分一致 */}
+                    <FormField
+                        id="dive-search-buddy-name"
+                        label="バディ名（部分一致）"
+                        error={errors.buddyName?.message}
+                        type="text"
+                        autoComplete="off"
+                        {...register('buddyName')}
+                    />
                 </div>
 
                 <div className="flex items-center gap-2">

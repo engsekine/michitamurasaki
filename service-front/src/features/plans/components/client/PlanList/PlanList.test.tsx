@@ -8,6 +8,7 @@ const TODAY = '2026-06-10';
 
 const buildPlan = (overrides: Partial<Plan> & Pick<Plan, 'id' | 'plannedOn' | 'location'>): Plan => ({
     notes: null,
+    diveShopId: null,
     createdAt: '2026-06-01T00:00:00Z',
     updatedAt: '2026-06-01T00:00:00Z',
     ...overrides,
@@ -66,5 +67,21 @@ describe('PlanList', () => {
 
         const ctaLink = screen.getByRole('link', { name: '次のダイビングを計画しよう' });
         expect(ctaLink).toHaveAttribute('href', '/plans/new');
+    });
+
+    it('当日以前の予定には「ログに記録する」導線を表示する（024 FR-001）', () => {
+        render(<PlanList plans={[todayPlan, finishedPlan]} today={TODAY} />);
+
+        const todayLink = screen.getByRole('link', { name: '沖縄 / 青の洞窟の予定をログに記録する' });
+        expect(todayLink).toHaveAttribute('href', '/dives/new?fromPlanId=p2');
+
+        const finishedLink = screen.getByRole('link', { name: '伊豆 / IOPの予定をログに記録する' });
+        expect(finishedLink).toHaveAttribute('href', '/dives/new?fromPlanId=p3');
+    });
+
+    it('未来日の予定には「ログに記録する」導線を表示しない（024 FR-002）', () => {
+        render(<PlanList plans={[upcomingPlan]} today={TODAY} />);
+
+        expect(screen.queryByRole('link', { name: /ログに記録する/ })).not.toBeInTheDocument();
     });
 });

@@ -4,7 +4,7 @@ import { vi } from 'vitest';
 
 import { DIVE_PAGE_SIZE } from '@/features/dives/constants';
 
-import { DIVE_LIST_COLUMNS, fetchDiveListPage, mapDiveListItem } from './list-query';
+import { applyDiveListFilter, DIVE_LIST_COLUMNS, fetchDiveListPage, mapDiveListItem } from './list-query';
 
 const buildRow = (overrides: Record<string, unknown> = {}) => ({
     id: 'd1',
@@ -43,7 +43,14 @@ const createMockClient = (result: QueryResult) => {
         builder[method].mockReturnValue(builder);
     }
     const from = vi.fn(() => builder);
-    return { client: { from } as unknown as SupabaseClient<Database>, from, builder };
+    // fetchDiveListPage は本人限定のため auth.getUser を呼ぶ。既定でログイン済みユーザーを返す
+    const getUser = vi.fn().mockResolvedValue({ data: { user: { id: 'u1' } } });
+    return {
+        client: { from, auth: { getUser } } as unknown as SupabaseClient<Database>,
+        from,
+        builder,
+        getUser,
+    };
 };
 
 describe('mapDiveListItem', () => {
@@ -155,10 +162,20 @@ describe('fetchDiveListPage', () => {
 
     it('cursor 指定時は (dive_date, id) の複合カーソル条件を付与する', async () => {
         const { client, builder } = createMockClient({ data: [], error: null });
+        const id = '0b8f4e2a-1111-4222-8333-444444444444';
 
-        await fetchDiveListPage(client, { cursor: { diveDate: '2026-06-01', id: 'd9' } });
+        await fetchDiveListPage(client, { cursor: { diveDate: '2026-06-01', id } });
 
-        expect(builder.or).toHaveBeenCalledWith('dive_date.lt.2026-06-01,and(dive_date.eq.2026-06-01,id.lt.d9)');
+        expect(builder.or).toHaveBeenCalledWith(`dive_date.lt.2026-06-01,and(dive_date.eq.2026-06-01,id.lt.${id})`);
+    });
+
+    it('形式が不正な cursor（PostgREST フィルタ構文の注入）はクエリせず空ページを返す', async () => {
+        const { client, builder } = createMockClient({ data: [], error: null });
+
+        const page = await fetchDiveListPage(client, { cursor: { diveDate: '2026-06-01', id: 'x),user_id.neq.0' } });
+
+        expect(page).toEqual({ items: [], nextCursor: null });
+        expect(builder.or).not.toHaveBeenCalled();
     });
 
     it('limit を超える行が返ったら limit 件に切り詰めて nextCursor を返す', async () => {
@@ -188,5 +205,51 @@ describe('fetchDiveListPage', () => {
         const { client } = createMockClient({ data: null, error: { message: 'permission denied' } });
 
         await expect(fetchDiveListPage(client)).rejects.toThrow(/permission denied/);
+    });
+});
+
+describe('applyDiveListFilter - バディ絞り込み（spec 021 FR-022/023）', () => {
+    /** dive_log_buddies の取得結果を返す thenable チェーンと、主クエリ（in スパイ付き）を用意する */
+    const setup = (buddyRows: { dive_id: string }[]) => {
+        const buddyBuilder = {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            ilike: vi.fn().mockReturnThis(),
+            // biome-ignore lint/suspicious/noThenProperty: Supabase クエリビルダーは thenable のためモックでも then を実装する
+            then: (resolve: (value: { data: { dive_id: string }[]; error: null }) => void) =>
+                resolve({ data: buddyRows, error: null }),
+        };
+        const supabase = { from: vi.fn(() => buddyBuilder) } as unknown as Parameters<typeof applyDiveListFilter>[0];
+        const next = {
+            eq: vi.fn().mockReturnThis(),
+            gte: vi.fn().mockReturnThis(),
+            lte: vi.fn().mockReturnThis(),
+            not: vi.fn().mockReturnThis(),
+            or: vi.fn().mockReturnThis(),
+            in: vi.fn().mockReturnThis(),
+        };
+        return { supabase, next, buddyBuilder };
+    };
+
+    it('buddyUserId は dive_log_buddies から dive_id を引き id を in で絞り込む', async () => {
+        const { supabase, next, buddyBuilder } = setup([{ dive_id: 'd1' }, { dive_id: 'd2' }]);
+        await applyDiveListFilter(supabase, next as never, { buddyUserId: 'u1' });
+        expect(buddyBuilder.eq).toHaveBeenCalledWith('buddy_user_id', 'u1');
+        expect(buddyBuilder.eq).toHaveBeenCalledWith('removed_by_buddy', false);
+        expect(next.in).toHaveBeenCalledWith('id', ['d1', 'd2']);
+    });
+
+    it('buddyName は removed_by_buddy=false の部分一致で dive_id を引いて絞り込む', async () => {
+        const { supabase, next, buddyBuilder } = setup([{ dive_id: 'd3' }]);
+        await applyDiveListFilter(supabase, next as never, { buddyName: '海太郎' });
+        expect(buddyBuilder.eq).toHaveBeenCalledWith('removed_by_buddy', false);
+        expect(buddyBuilder.ilike).toHaveBeenCalledWith('buddy_name', '%海太郎%');
+        expect(next.in).toHaveBeenCalledWith('id', ['d3']);
+    });
+
+    it('該当バディが無ければ空集合で in を呼び 0 件に絞る', async () => {
+        const { supabase, next } = setup([]);
+        await applyDiveListFilter(supabase, next as never, { buddyUserId: 'u1' });
+        expect(next.in).toHaveBeenCalledWith('id', []);
     });
 });

@@ -9,11 +9,23 @@ export interface DiveStats {
 }
 
 /** TOP ヒーロー用のデータ */
-export interface DashboardHero {
+export interface DashboardHeroData {
     /** 表示名（user_details.nickname）。未設定は null */
     nickname: string | null;
     /** ブランク日数（最後に潜ってからの経過日数・最小 0）。ログ 0 件は null */
     blankDays: number | null;
+    /** 最終潜水日（'YYYY-MM-DD'）。ログ 0 件は null */
+    lastDiveOn: string | null;
+}
+
+/** FV に表示する次のダイビング予定（plans 機能のデータを app 層で変換して渡す） */
+export interface HeroNextPlan {
+    id: string;
+    /** 'YYYY-MM-DD' */
+    plannedOn: string;
+    location: string;
+    /** 今日 = 0、未来 = 正の値 */
+    daysUntil: number;
 }
 
 /** メイン機材の OH ステータス（未登録は null を返す） */
@@ -32,6 +44,8 @@ export interface RecentDiveItem {
     location: string;
     maxDepthM: number;
     bottomTimeMin: number;
+    /** 代表写真（cover 優先）のサムネイル署名 URL。写真がなければ null（カード側でダミー画像にフォールバック） */
+    coverThumbUrl: string | null;
 }
 
 /** 年別本数（get_dive_yearly_counts RPC + 歯抜け年 0 埋め後） */
@@ -45,8 +59,4 @@ export interface MonthlyDiveStat {
     /** 'YYYY-MM' */
     month: string;
     diveCount: number;
-    /** 平均水温。記録なし月は null（0 と区別する） */
-    avgWaterTempC: number | null;
-    /** 月内最大深度。ダイブなし月は null */
-    maxDepthM: number | null;
 }

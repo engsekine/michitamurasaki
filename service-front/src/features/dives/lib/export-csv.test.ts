@@ -8,6 +8,8 @@ const buildDive = (overrides: Partial<Dive> = {}): Dive => ({
     diveNumber: 12,
     diveDate: '2025-07-01',
     entryTime: '10:00:00',
+    diveShopId: null,
+    shop: null,
     exitTime: '10:45:00',
     location: '大瀬崎',
     diveSiteId: null,
@@ -91,5 +93,20 @@ describe('divesToCsv', () => {
     it('null / 未入力は空セルにする', () => {
         const csv = divesToCsv([buildDive({ waterTempC: null, buddyName: null })]);
         expect(csv).not.toContain('null');
+    });
+
+    it("数式インジェクション: = + @ 始まりのセルは先頭に ' を付けて無害化する", () => {
+        const csv = divesToCsv([buildDive({ notes: '=SUM(A1:A9)', buddyName: '@evil' })]);
+        const row = lines(csv)[1] ?? '';
+        expect(row).toContain("'=SUM(A1:A9)");
+        expect(row).toContain("'@evil");
+    });
+
+    it('数式インジェクション: 負数などの純粋な数値はガード対象外', () => {
+        const csv = divesToCsv([buildDive({ waterTempC: -5, airTempC: -10.5 })]);
+        const row = lines(csv)[1] ?? '';
+        expect(row).toContain(',-5,');
+        expect(row).toContain(',-10.5,');
+        expect(row).not.toContain("'-5");
     });
 });

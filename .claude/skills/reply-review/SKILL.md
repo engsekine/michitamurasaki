@@ -2,6 +2,8 @@
 name: reply-review
 description: PRのレビューコメントに対して、コミット差分・変更ログを根拠に納得感のある返信ドラフトを生成する。
 user-invocable: true
+argument-hint: "<レビューコメント本文 | PR番号>"
+allowed-tools: Read, Grep, Glob, Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git merge-base:*), Bash(git branch:*), Bash(gh pr view:*), Bash(gh api:*)
 ---
 
 PRのレビューコメントに対して、コミット差分・変更ログを根拠に納得感のある返信ドラフトを生成する。
@@ -9,19 +11,30 @@ PRのレビューコメントに対して、コミット差分・変更ログを
 ## 入力パターン
 
 - `/reply-review <レビューコメント本文を貼り付け>` — 貼り付けたコメントに対する返信ドラフトを生成
-
-レビューコメントはユーザーがGitHubからコピーしてそのまま貼り付ける。PR番号やAPIからの取得は行わない。
+- `/reply-review <PR番号>` — 引数が数値のみの場合、`gh` CLI で PR のレビューコメントを取得して返信ドラフトを生成
 
 ## 手順
 
-### 1. 変更コンテキストの収集
+### 0. レビューコメントの取得（PR番号指定時のみ）
 
-現在のブランチのコミット差分・ログから変更の全体像を把握する。
+引数が数値のみの場合、`gh` CLI でレビューコメントを取得する:
 
 ```bash
-git diff main...HEAD --stat
-git diff main...HEAD
-git log main..HEAD --oneline
+gh pr view <番号> --comments
+gh api "repos/{owner}/{repo}/pulls/<番号>/comments" --jq '.[] | {user: .user.login, path: .path, line: .line, body: .body}'
+```
+
+- 未解決の指摘を対象とする（どのコメントに返信するかユーザーの指定があればそれに絞る）
+- `gh` が使えない / 認証エラーの場合は「コメント本文を貼り付けてください」と案内して終了
+
+### 1. 変更コンテキストの収集
+
+現在のブランチのコミット差分・ログから変更の全体像を把握する。ベースブランチは [.claude/rules/diff-scope.md](../../rules/diff-scope.md) に従って検出する（PR がある場合は `gh pr view <番号> --json baseRefName` の結果を優先）。
+
+```bash
+git diff <ベース>...HEAD --stat
+git diff <ベース>...HEAD
+git log <ベース>..HEAD --oneline
 git diff --cached --stat    # ステージング済みの変更があれば併せて確認
 git diff --cached
 ```
@@ -51,7 +64,7 @@ git diff --cached
 
 | 分類 | 判定方法 | 説明 |
 |------|---------|------|
-| **変更範囲内** | 指摘対象のファイルパスが `git diff main...HEAD --name-only` に含まれる | このブランチで追加・変更したコードへの指摘 |
+| **変更範囲内** | 指摘対象のファイルパスが `git diff <ベース>...HEAD --name-only` に含まれる | このブランチで追加・変更したコードへの指摘 |
 | **変更範囲外** | 指摘対象のファイルパスが差分に含まれない | 既存コードへの指摘 |
 | **関連あり** | ファイルは差分に含まれないが、変更したファイルが import/依存している | 今回の変更と関連する既存コードへの指摘 |
 
@@ -101,3 +114,4 @@ git diff --cached
 ## $ARGUMENTS
 
 - `/reply-review <レビューコメント>` — 貼り付けたレビューコメントに対する返信ドラフトを生成
+- `/reply-review <PR番号>` — 引数が数値のみの場合、`gh` CLI でレビューコメントを取得して生成

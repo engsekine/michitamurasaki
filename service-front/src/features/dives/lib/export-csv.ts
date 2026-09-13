@@ -49,8 +49,22 @@ const COLUMNS: CsvColumn[] = [
     { header: 'メモ', value: (d) => cell(d.notes) },
 ];
 
+/** 純粋な数値表現（負数・小数含む）。数式ガードの対象外にする */
+const NUMERIC_PATTERN = /^-?\d+(\.\d+)?$/;
+
+/**
+ * CSV/数式インジェクション対策: `= + - @` 始まりのセルは Excel 等で数式として
+ * 評価されうるため、先頭に `'` を付けて無害化する。
+ * 負数などの純粋な数値はデータとして正しいため対象外とする。
+ */
+const guardFormula = (value: string): string =>
+    /^[=+\-@]/.test(value) && !NUMERIC_PATTERN.test(value) ? `'${value}` : value;
+
 /** RFC 4180: 値に `,` `"` 改行を含む場合のみ `"` で囲み、内部の `"` を `""` にする */
-const escapeField = (value: string): string => (/[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
+const escapeField = (value: string): string => {
+    const guarded = guardFormula(value);
+    return /[",\r\n]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
+};
 
 const toLine = (fields: string[]): string => fields.map(escapeField).join(',');
 

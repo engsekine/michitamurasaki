@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 import { diveLocationLabel } from '@/features/dives/lib/diveLabel';
 import type { DiveListItem } from '@/features/dives/types';
+import { formatJstDate } from '@/shared/lib/date';
 import { getTidePhase, TIDE_PHASE_LABELS } from '@/shared/lib/tide';
 
 interface DiveCardProps {
@@ -16,11 +17,6 @@ interface DiveCardProps {
     onToggleSelect?: (id: string) => void;
 }
 
-const formatDate = (isoDate: string): string => {
-    const [y, m, d] = isoDate.split('-');
-    return `${y}/${m}/${d}`;
-};
-
 export const DiveCard = ({ dive, selectable = false, selected = false, onToggleSelect }: DiveCardProps) => {
     const tidePhase = getTidePhase(dive.diveDate);
 
@@ -30,7 +26,7 @@ export const DiveCard = ({ dive, selectable = false, selected = false, onToggleS
                 <div className="flex items-center gap-2">
                     <span className="text-muted-foreground text-sm">
                         <span className="sr-only">潜水日: </span>
-                        {formatDate(dive.diveDate)}
+                        {formatJstDate(dive.diveDate)}
                     </span>
                     {/* バッジは text-muted-foreground だと bg-muted 上でコントラスト AA 未達のため text-foreground を使う */}
                     {tidePhase !== null && (
@@ -90,7 +86,7 @@ export const DiveCard = ({ dive, selectable = false, selected = false, onToggleS
                         type="checkbox"
                         checked={selected}
                         onChange={() => onToggleSelect?.(dive.id)}
-                        aria-label={`エクスポート対象として選択: ${formatDate(dive.diveDate)} ${diveLocationLabel(dive)}`}
+                        aria-label={`エクスポート対象として選択: ${formatJstDate(dive.diveDate)} ${diveLocationLabel(dive)}`}
                         className="mt-1 size-4 shrink-0"
                     />
                     {/* biome-ignore lint/a11y/useKeyWithClickEvents: 操作の主体は上のチェックボックス。ここはマウス補助 */}

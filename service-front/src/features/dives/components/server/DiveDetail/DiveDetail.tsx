@@ -1,30 +1,64 @@
-import { buttonVariants } from '@repo/ui/components/button';
 import type { Route } from 'next';
 import Link from 'next/link';
-
+import type { ReactNode } from 'react';
 import { DeleteDiveButton } from '@/features/dives/components/client/DeleteDiveButton';
 import { DivePhotoGallery } from '@/features/dives/components/client/DivePhotoGallery';
 import { DivePhotoUploader } from '@/features/dives/components/client/DivePhotoUploader';
+import { DiveVisibilityToggle } from '@/features/dives/components/client/DiveVisibilityToggle';
 import { TANK_TYPE_LABEL_MAP, type TankTypeValue } from '@/features/dives/constants';
 import { diveLocationLabel } from '@/features/dives/lib/diveLabel';
 import { calcSacRate, formatSacRate, SAC_INPUT_FIELD_LABELS } from '@/features/dives/lib/sacRate';
-import type { Dive, DivePhotoView } from '@/features/dives/types';
+import type { Dive, DiveBuddy, DivePhotoView } from '@/features/dives/types';
+import { SnsShareButtons } from '@/shared/components/social/SnsShareButtons';
+import { Heading } from '@/shared/components/typography/Heading';
+import { buttonVariants } from '@/shared/components/ui/Button';
+import { SITE_NAME, SITE_URL } from '@/shared/constants/site';
+import { formatJstDate } from '@/shared/lib/date';
+import { profilePath } from '@/shared/lib/profile-path';
 import { getTidePhase, TIDE_PHASE_LABELS } from '@/shared/lib/tide';
 
 interface DiveDetailProps {
     dive: Dive;
     /** 添付写真（表示順・署名 URL 解決済み）。既定は空 */
     photos?: DivePhotoView[];
+    /** 同行バディ（登録ユーザー + フリーテキスト）。既定は空 */
+    buddies?: DiveBuddy[];
     /** 本人として写真を管理（追加）できるか。公開ページなどでは false */
     canManage?: boolean;
+    /**
+     * いいね操作/件数表示のスロット（spec 027）。app 層が LikeButton 等を注入する。
+     * dives → social の cross-feature import を避けるため ReactNode で受ける
+     */
+    likeAction?: ReactNode;
 }
 
-const EMPTY_PLACEHOLDER = '—';
-
-const formatDate = (isoDate: string): string => {
-    const [y, m, d] = isoDate.split('-');
-    return `${y}/${m}/${d}`;
+/** 同行バディ一覧。登録ユーザーはプロフィールへリンク、フリーテキストは素テキスト（spec 021 FR-004） */
+const BuddyList = ({ buddies }: { buddies: DiveBuddy[] }) => {
+    if (buddies.length === 0) return <span className="text-sm">{EMPTY_PLACEHOLDER}</span>;
+    return (
+        <ul className="flex flex-wrap gap-2">
+            {buddies.map((buddy) =>
+                buddy.isRegistered && buddy.userId ? (
+                    <li key={buddy.id}>
+                        <Link
+                            // リンクはユーザー ID（034）。未解決時は内部 ID URL → ページ側転送で正規化される
+                            href={profilePath({ userId: buddy.userId, handle: buddy.handle }) as Route}
+                            className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-sm hover:bg-muted/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
+                        >
+                            {buddy.name}
+                        </Link>
+                    </li>
+                ) : (
+                    <li key={buddy.id} className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-sm">
+                        {buddy.name}
+                    </li>
+                ),
+            )}
+        </ul>
+    );
 };
+
+const EMPTY_PLACEHOLDER = '—';
 
 const formatTime = (value: string | null): string | null => {
     if (!value) return null;
@@ -58,24 +92,27 @@ const FullField = ({ label, value }: { label: string; value: string | null | und
     );
 };
 
-export const DiveDetail = ({ dive, photos = [], canManage = false }: DiveDetailProps) => {
+export const DiveDetail = ({ dive, photos = [], buddies = [], canManage = false, likeAction }: DiveDetailProps) => {
     const tidePhase = getTidePhase(dive.diveDate);
     const sacRate = calcSacRate(dive);
 
     return (
         <div className="flex flex-col gap-6">
             <header className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-sm">{formatDate(dive.diveDate)}</span>
-                    {/* バッジは text-muted-foreground だと bg-muted 上でコントラスト AA 未達のため text-foreground を使う */}
-                    {tidePhase !== null && (
-                        <span className="rounded-md bg-muted px-2 py-0.5 text-foreground text-xs">
-                            <span className="sr-only">潮回り: </span>
-                            {TIDE_PHASE_LABELS[tidePhase]}
-                        </span>
-                    )}
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-sm">{formatJstDate(dive.diveDate)}</span>
+                        {/* バッジは text-muted-foreground だと bg-muted 上でコントラスト AA 未達のため text-foreground を使う */}
+                        {tidePhase !== null && (
+                            <span className="rounded-md bg-muted px-2 py-0.5 text-foreground text-xs">
+                                <span className="sr-only">潮回り: </span>
+                                {TIDE_PHASE_LABELS[tidePhase]}
+                            </span>
+                        )}
+                    </div>
+                    {likeAction}
                 </div>
-                <h1 className="flex items-baseline gap-2 font-semibold text-2xl">
+                <Heading level={1} className="items-baseline gap-2">
                     {dive.diveSite ? (
                         <Link href={`/dive-sites/${dive.diveSite.id}` as Route} className="text-primary underline">
                             {diveLocationLabel(dive)}
@@ -86,13 +123,35 @@ export const DiveDetail = ({ dive, photos = [], canManage = false }: DiveDetailP
                     {dive.diveNumber !== null && (
                         <span className="font-normal text-muted-foreground text-xl">#{dive.diveNumber}</span>
                     )}
-                </h1>
+                </Heading>
                 {dive.certificationDive && (
                     <span className="inline-block w-fit rounded-md bg-primary/10 px-2 py-0.5 text-primary text-xs">
                         講習ダイブ
                     </span>
                 )}
             </header>
+
+            {canManage && (
+                <section aria-labelledby="dive-detail-visibility" className="flex flex-col gap-2">
+                    <h2 id="dive-detail-visibility" className="font-medium text-sm">
+                        公開設定
+                    </h2>
+                    <DiveVisibilityToggle diveId={dive.id} initialIsPublic={dive.isPublic} />
+                </section>
+            )}
+
+            {/* SNS 共有は公開ログのみ・閲覧者にも表示する（spec 035 FR-001。canManage に依存させない） */}
+            {dive.isPublic && (
+                <section aria-labelledby="dive-detail-share" className="flex flex-col gap-2">
+                    <h2 id="dive-detail-share" className="font-medium text-sm">
+                        SNSで共有
+                    </h2>
+                    <SnsShareButtons
+                        url={`${SITE_URL}/dives/${dive.id}`}
+                        text={`${diveLocationLabel(dive)}のダイビングログ（${formatJstDate(dive.diveDate)}）| ${SITE_NAME}`}
+                    />
+                </section>
+            )}
 
             <section aria-labelledby="dive-detail-basic" className="flex flex-col gap-4">
                 <h2 id="dive-detail-basic" className="font-semibold text-lg">
@@ -113,6 +172,18 @@ export const DiveDetail = ({ dive, photos = [], canManage = false }: DiveDetailP
                 </div>
 
                 <Field label="ダイブタイプ" value={dive.diveType} />
+
+                {/* 紐付けたショップ（033 / FR-008）。RLS により本人以外では shop が null になるため公開ビューには出ない */}
+                {dive.shop && (
+                    <dl className="flex flex-col gap-1">
+                        <dt className="font-medium text-sm">ショップ</dt>
+                        <dd>
+                            <Link href={`/shops/${dive.shop.id}` as Route} className="text-primary underline">
+                                {dive.shop.name}
+                            </Link>
+                        </dd>
+                    </dl>
+                )}
             </section>
 
             <section aria-labelledby="dive-detail-numbers" className="flex flex-col gap-4">
@@ -179,9 +250,16 @@ export const DiveDetail = ({ dive, photos = [], canManage = false }: DiveDetailP
                 </h2>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label="バディ名" value={dive.buddyName} />
+                    <Field label="バディ名（旧）" value={dive.buddyName} />
                     <Field label="インストラクター名" value={dive.instructorName} />
                 </div>
+
+                <dl className="flex flex-col gap-1">
+                    <dt className="font-medium text-sm">同行バディ</dt>
+                    <dd>
+                        <BuddyList buddies={buddies} />
+                    </dd>
+                </dl>
 
                 <FullField label="メモ・印象" value={dive.notes} />
             </section>
@@ -198,19 +276,22 @@ export const DiveDetail = ({ dive, photos = [], canManage = false }: DiveDetailP
                 </section>
             )}
 
-            <div className="flex items-center justify-end gap-2 border-border border-t pt-6">
-                <a
-                    href={`/dives/export?format=pdf&ids=${dive.id}`}
-                    download
-                    className={buttonVariants({ variant: 'outline' })}
-                >
-                    PDF出力
-                </a>
-                <Link href={`/dives/${dive.id}/edit`} className={buttonVariants({ variant: 'outline' })}>
-                    編集
-                </Link>
-                <DeleteDiveButton diveId={dive.id} />
-            </div>
+            {/* PDF出力・編集・削除は作成者のみ。他人の公開ログでは操作させない（閲覧専用） */}
+            {canManage && (
+                <div className="flex items-center justify-end gap-2 border-border border-t pt-6">
+                    <a
+                        href={`/dives/export?format=pdf&ids=${dive.id}`}
+                        download
+                        className={buttonVariants({ variant: 'outline' })}
+                    >
+                        PDF出力
+                    </a>
+                    <Link href={`/dives/${dive.id}/edit`} className={buttonVariants({ variant: 'outline' })}>
+                        編集
+                    </Link>
+                    <DeleteDiveButton diveId={dive.id} />
+                </div>
+            )}
         </div>
     );
 };

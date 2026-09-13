@@ -2,6 +2,10 @@
 -- 既存オブジェクトの掃除（冪等性確保）
 -- 開発中の再適用時にトリガー重複エラーが出ないように先に落とす
 -- ========================================
+-- drop if exists の空振り時に出る「does not exist, skipping」NOTICE を抑制する
+-- （set local のためこのマイグレーションのトランザクション内のみ有効）
+set local client_min_messages = warning;
+
 drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user();
 drop table if exists public.user_details cascade;

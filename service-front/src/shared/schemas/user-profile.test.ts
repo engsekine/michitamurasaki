@@ -11,6 +11,7 @@ const validInput = {
     lastNameRomaji: 'Yamada',
     firstNameRomaji: 'Taro',
     nickname: 'たろちゃん',
+    handle: 'taro-diver',
     birthOn: '1990-01-01',
     gender: 'male',
     heightCm: 170.5,
@@ -39,6 +40,50 @@ describe('userProfileFields', () => {
         ['gender', 'other', '性別を選択してください'],
     ])('%s が不正な値 %s だとエラーになる', async (field, value, message) => {
         await expect(profileSchema.validate({ ...validInput, [field]: value })).rejects.toThrow(message);
+    });
+
+    describe('ユーザー ID（034 Rev.2 / FR-002・003）', () => {
+        it('大文字・前後空白は小文字化・trim して保存形に正規化される', async () => {
+            const result = await profileSchema.validate({ ...validInput, handle: '  TaroDiver ' });
+            expect(result.handle).toBe('tarodiver');
+        });
+
+        it.each(['taro', 'buddy-taro', 'user_01', 'a12', 'a'.repeat(30)])('%j は登録できる', async (handle) => {
+            await expect(profileSchema.validate({ ...validInput, handle })).resolves.toBeTruthy();
+        });
+
+        it.each([
+            'ab',
+            'a'.repeat(31),
+            '1abc',
+            '-abc',
+            'たろう',
+            'a b',
+            'a.b',
+            'a/b',
+        ])('形式不正 %j はエラーになる', async (handle) => {
+            await expect(profileSchema.validate({ ...validInput, handle })).rejects.toThrow(
+                'ユーザー ID は半角英小文字・数字・ - _ の 3〜30 文字（先頭は英字）で入力してください',
+            );
+        });
+
+        it.each(['search', 'SEARCH'])('予約セグメント %j はエラーになる', async (handle) => {
+            await expect(profileSchema.validate({ ...validInput, handle })).rejects.toThrow(
+                'このユーザー ID は使用できません',
+            );
+        });
+
+        it('空はエラーになる（必須）', async () => {
+            await expect(profileSchema.validate({ ...validInput, handle: '' })).rejects.toThrow(
+                'ユーザー ID を入力してください',
+            );
+        });
+
+        it('ニックネームは日本語・記号を含めて従来どおり登録できる（FR-010）', async () => {
+            await expect(
+                profileSchema.validate({ ...validInput, nickname: 'たろちゃん / Dive Master' }),
+            ).resolves.toBeTruthy();
+        });
     });
 
     it('51文字以上の姓はエラーになる', async () => {

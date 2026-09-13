@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { listUsers, type UserListRow } from '@/features/users-admin';
+import { listUsers, USER_SORTABLE_COLUMNS, type UserListRow } from '@/features/users-admin';
 import { type Column, DataTable } from '@/shared/components/table/DataTable';
 import { Pagination } from '@/shared/components/table/Pagination';
 import { TableSearchBar } from '@/shared/components/table/TableSearchBar';
@@ -20,13 +20,11 @@ export const metadata = generatePageMetadata({
     description: '登録ユーザーの一覧',
 });
 
-const SORTABLE = ['created_at', 'nickname'];
-
 export default async function UsersPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
     const sp = await searchParams;
     const page = parsePage(firstParam(sp, 'page'));
     const search = parseSearch(firstParam(sp, 'search'));
-    const sort = parseSort(firstParam(sp, 'sort'), firstParam(sp, 'dir'), SORTABLE);
+    const sort = parseSort(firstParam(sp, 'sort'), firstParam(sp, 'dir'), USER_SORTABLE_COLUMNS);
 
     const { rows, total, perPage } = await listUsers({ page, perPage: DEFAULT_PER_PAGE, search, sort });
 

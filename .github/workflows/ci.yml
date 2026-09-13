@@ -1,65 +1,120 @@
-# 軽量品質チェック（PR + main push）
-# 仕様: specs/005-github-actions-ci/（ジョブ名は branch protection の required checks 名として使われる）
+# 軽量品質チェック
+# 仕様: specs/005-github-actions-ci/
+# ブランチ更新（push）のたびに自動実行する（2026-08-08 に手動運用から復帰）。
+# 重いテスト（E2E / Storybook）は full-test.yml のまま手動実行で分離している。
+# Actions タブの「Run workflow」からの手動実行も引き続き可能。
 name: CI
 
 on:
-    pull_request:
     push:
-        branches: [main]
+        # タグ push では実行しない（ブランチのみ対象）
+        branches:
+            - '**'
+    workflow_dispatch:
 
 # 同一 ref の旧実行をキャンセル（FR-003）。main は完走させる
 concurrency:
     group: ci-${{ github.ref }}
     cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+# GITHUB_TOKEN は最小権限に固定（npm ci は依存の install スクリプトを実行するため、
+# サプライチェーン侵害時に書き込み可能トークンが窃取されるのを防ぐ）
+permissions:
+    contents: read
+
 jobs:
     lint:
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
-                  node-version: 22
+                  node-version: 24
                   cache: npm
             - run: npm ci
             - run: npm run check --workspace service-front
 
-    markup-lint:
+    lint-admin:
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
-                  node-version: 22
+                  node-version: 24
+                  cache: npm
+            - run: npm ci
+            - run: npm run check --workspace admin-front
+
+    markup-lint:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
                   cache: npm
             - run: npm ci
             - run: npm run lint:markup --workspace service-front
 
     type-check:
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
-                  node-version: 22
+                  node-version: 24
                   cache: npm
             - run: npm ci
             - run: npm run type-check --workspace service-front
 
-    unit-test:
+    type-check-admin:
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
-                  node-version: 22
+                  node-version: 24
+                  cache: npm
+            - run: npm ci
+            - run: npm run type-check --workspace admin-front
+
+    unit-test:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
                   cache: npm
             - run: npm ci
             # カバレッジ閾値（70%）の検証を含む（FR-004）
             - run: npm run test:coverage --workspace service-front
 
+    unit-test-admin:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+            - run: npm ci
+            - run: npm run test:coverage --workspace admin-front
+
     db-lint:
         runs-on: ubuntu-latest
+        timeout-minutes: 10
+        env:
+            # config.toml の auth.email.smtp.enabled が env(SMTP_ENABLED) を参照するため、
+            # 未定義だと supabase CLI が config パースで失敗する。CI はメール実送信しないので false 固定
+            SMTP_ENABLED: false
         steps:
             - uses: actions/checkout@v4
             - uses: supabase/setup-cli@v1
@@ -70,3 +125,22 @@ jobs:
             # lint はローカル DB への接続が必要。フルスタックではなく DB コンテナのみ起動する（FR-005）
             - run: supabase db start
             - run: supabase db lint
+
+    # モバイルアプリ + 共有パッケージ（029）
+    mobile:
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+            - run: npm ci
+            # 共有パッケージ（dive スキーマ・転送変換）
+            - run: npm run test --workspace packages/core
+            - run: npm run type-check --workspace packages/core
+            # モバイル（純粋ロジック = Vitest / RN コンポーネント = jest-expo / 型）
+            - run: npm run test:unit --workspace mobile
+            - run: npm run test:component --workspace mobile
+            - run: npm run type-check --workspace mobile

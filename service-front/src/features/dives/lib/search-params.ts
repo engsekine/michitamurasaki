@@ -11,6 +11,8 @@ const DEPTH_MIN = 0;
 const DEPTH_MAX = 300;
 const DIVE_NUMBER_MAX = 9999;
 const LOCATION_MAX_LENGTH = 120;
+const BUDDY_NAME_MAX_LENGTH = 100;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** 0〜300 の有限数なら返す。範囲外・非数は undefined（パラメータ無視） */
 const parseDepth = (raw: string | null): number | undefined => {
@@ -63,6 +65,14 @@ export const parseDiveFilter = (params: URLSearchParams): DiveListFilter => {
     const location = params.get('q')?.trim();
     if (location) filter.location = location.slice(0, LOCATION_MAX_LENGTH);
 
+    // バディ（登録ユーザー）: uuid 形式のみ採用（spec 021 FR-022）
+    const buddy = params.get('buddy')?.trim();
+    if (buddy && UUID_PATTERN.test(buddy)) filter.buddyUserId = buddy;
+
+    // バディ名（フリーテキスト・部分一致）
+    const buddyName = params.get('buddy_name')?.trim();
+    if (buddyName) filter.buddyName = buddyName.slice(0, BUDDY_NAME_MAX_LENGTH);
+
     return filter;
 };
 
@@ -76,6 +86,8 @@ export const filterToSearchParams = (filter: DiveListFilter): URLSearchParams =>
     if (filter.depthMax !== undefined) params.set('depth_max', String(filter.depthMax));
     if (filter.diveType) params.set('type', filter.diveType);
     if (filter.location) params.set('q', filter.location);
+    if (filter.buddyUserId) params.set('buddy', filter.buddyUserId);
+    if (filter.buddyName) params.set('buddy_name', filter.buddyName);
     return params;
 };
 
@@ -97,6 +109,8 @@ const FILTER_KEYS: (keyof DiveListFilter)[] = [
     'depthMax',
     'diveType',
     'location',
+    'buddyUserId',
+    'buddyName',
 ];
 
 /** 2 つのフィルタが同一条件か（initialData シードや冪等判定に使う） */

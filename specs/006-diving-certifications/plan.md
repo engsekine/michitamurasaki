@@ -24,7 +24,7 @@
 
 **Performance Goals**: 1 ユーザーの資格は高々数十件のため一覧はページネーション不要の全件取得。一覧表示は Server Component の 1 クエリで完結させる
 
-**Constraints**: WCAG 2.1 AA 準拠 / RLS 必須 / `user_id` は Server Action 側で `auth.uid()` から強制セット / 取得日は「未来日付不可」（ユーザーのローカル日付基準で yup + Server Action が検証。DB CHECK は `current_date + 1` の安全網）と「生年月日以降」（Server Action でクロステーブル検証）
+**Constraints**: WCAG 2.1 AA 準拠 / RLS 必須 / `user_id` は Server Action 側で `auth.uid()` から強制セット / 取得日は「未来日付不可」（JST 基準（`todayInJst`）で yup + Server Action が検証。DB CHECK は `current_date + 1` の安全網）と「生年月日以降」（Server Action でクロステーブル検証）
 
 **Scale/Scope**: 1 ユーザーあたり数件〜十数件。画面 3 つ（一覧 / 新規 / 編集）
 

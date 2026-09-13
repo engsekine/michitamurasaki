@@ -2,6 +2,7 @@ import * as yup from 'yup';
 
 import { GENDER_VALUES, type Gender } from '@/shared/constants/gender';
 import { isValidBirthDate } from '@/shared/lib/date';
+import { isValidHandle, normalizeHandle, RESERVED_USER_SEGMENTS } from '@/shared/lib/profile-path';
 import { ROMAJI_PATTERN } from '@/shared/schemas/patterns';
 import { optionalNumber } from '@/shared/schemas/transforms';
 
@@ -40,6 +41,28 @@ export const userProfileFields = {
         .min(1, 'ニックネームを入力してください')
         .max(50, 'ニックネームは50文字以内で入力してください')
         .required('ニックネームを入力してください'),
+    /**
+     * ユーザー ID（034 Rev.2）。プロフィール URL の識別子。
+     * 大文字入力は小文字へ正規化して保存する（判定は profile-path と共有）。
+     */
+    handle: yup
+        .string()
+        .transform((v) => (typeof v === 'string' ? normalizeHandle(v) : v))
+        .required('ユーザー ID を入力してください')
+        .min(1, 'ユーザー ID を入力してください')
+        .test(
+            'handle-format',
+            'ユーザー ID は半角英小文字・数字・ - _ の 3〜30 文字（先頭は英字）で入力してください',
+            (value) => {
+                if (!value) return true;
+                if ((RESERVED_USER_SEGMENTS as readonly string[]).includes(value)) return true; // 予約語は次の test で専用メッセージを出す
+                return isValidHandle(value);
+            },
+        )
+        .test('handle-reserved', 'このユーザー ID は使用できません', (value) => {
+            if (!value) return true;
+            return !(RESERVED_USER_SEGMENTS as readonly string[]).includes(value);
+        }),
     birthOn: yup
         .string()
         .matches(/^\d{4}-\d{2}-\d{2}$/, '正しい日付を入力してください')

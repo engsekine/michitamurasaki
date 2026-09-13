@@ -35,3 +35,4 @@
 
 - 「終了済み」判定はステータスカラムではなく `daysUntil(plannedOn, todayInJst()) < 0` の導出（research.md Decision 4）
 - セクションは `aria-labelledby` で region 化
+- 各カードに「ログに記録する」導線（024 で追加）。表示条件は `canMovePlanToLog`（予定日が当日以前）。詳細は [specs/024-plan-to-log](../../024-plan-to-log/spec.md) を参照

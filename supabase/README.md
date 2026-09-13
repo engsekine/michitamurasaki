@@ -2,6 +2,10 @@
 
 ローカル Supabase スタックの設定（`config.toml`）とマイグレーション（`migrations/`）を管理するディレクトリ。
 
+> リポジトリ全体の構成・サービスの起動順序は [ルートの readme](../readme.md#web-サービス全体の環境構築) を参照してください。
+> service-front / admin-front はどちらもこのローカル Supabase を共有します。
+> **stg / prod（リモート）**へのマイグレーション反映は CI/CD が自動で行うため、リモートに対する手動 `supabase db push` は不要です（[ルート readme の「デプロイ」章](../readme.md#デプロイstg--prod)）。ローカル開発の `make supabase-reset` / `supabase migration up` は従来どおり使います。
+
 ## 前提
 
 Supabase CLI と Docker が必要です。
@@ -12,6 +16,23 @@ brew install supabase/tap/supabase
 
 # Docker Desktop が起動していること
 ```
+
+## 環境変数（supabase/.env）
+
+`config.toml` 内の `env(...)` 参照は、**このディレクトリの `.env`** から読み込まれます。`supabase/.env.example` をコピーして作成してください。
+
+```bash
+cp supabase/.env.example supabase/.env
+```
+
+| 変数 | 必須 | 説明 |
+|------|:---:|------|
+| `SMTP_ENABLED` | ✓ | 認証メールの実送信（Resend）を有効にするか。**未定義だと `supabase start` がパースエラーで起動しない**。ローカルは `false` 推奨（メールは Mailpit http://127.0.0.1:54324 が捕捉） |
+| `RESEND_API_KEY` | `SMTP_ENABLED=true` 時 | Resend の API キー |
+| `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET` | Google ログイン使用時 | Google OAuth の認証情報 |
+| `SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN` | SMS 実送信時 | Twilio の Auth Token（未設定でも警告のみで動作する） |
+
+> seed 生成用の `TEST_USER_*` は `.env` ではなく **`supabase/.env.local`** に置きます（「初期データ」セクションのテンプレート方式を参照）。
 
 ## 起動・停止
 

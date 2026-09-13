@@ -17,11 +17,6 @@
         "id-duplication": false
       }
     },
-    "**/components/server/{TrendChartCard,DiveTrends}/*.{jsx,tsx}": {
-      "rules": {
-        "heading-levels": false
-      }
-    },
     "**/components/chart/LineChart/LineChart.{jsx,tsx}": {
       "rules": {
         "permitted-contents": false

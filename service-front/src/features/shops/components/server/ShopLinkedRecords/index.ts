@@ -1,0 +1,1 @@
+export { ShopLinkedRecords } from './ShopLinkedRecords';

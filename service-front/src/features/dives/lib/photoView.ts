@@ -17,6 +17,35 @@ export const mapDivePhotoRow = (row: DivePhotoRow): DivePhoto => ({
     height: row.height,
 });
 
+/** カバーサムネイル選定用の最小情報 */
+export interface CoverThumbRef {
+    diveId: string;
+    thumbPath: string;
+    isCover: boolean;
+    sortOrder: number;
+}
+
+/**
+ * ダイブごとに代表サムネイルの Storage パスを 1 つ選ぶ純粋関数。
+ * 優先順位は「cover フラグ → sort_order 昇順」。写真のないダイブはマップに載らない。
+ */
+export const selectCoverThumbPaths = (refs: CoverThumbRef[]): Map<string, string> => {
+    const bestByDive = new Map<string, CoverThumbRef>();
+    for (const ref of refs) {
+        const current = bestByDive.get(ref.diveId);
+        if (!current) {
+            bestByDive.set(ref.diveId, ref);
+            continue;
+        }
+        // cover を最優先、同条件なら sort_order の小さい方
+        const isBetter =
+            (ref.isCover && !current.isCover) || (ref.isCover === current.isCover && ref.sortOrder < current.sortOrder);
+        if (isBetter) bestByDive.set(ref.diveId, ref);
+    }
+
+    return new Map([...bestByDive].map(([diveId, ref]) => [diveId, ref.thumbPath]));
+};
+
 /** alt はキャプション優先、無ければログ情報由来のフォールバック（FR-009 系 / accessibility.md） */
 export const buildPhotoAlt = (caption: string, fallback: string): string => {
     const trimmed = caption.trim();

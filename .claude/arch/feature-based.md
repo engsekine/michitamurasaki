@@ -1,5 +1,8 @@
 # Feature-based + shared/ アーキテクチャ
 
+> **適用範囲: service-front / admin-front 共通**
+> 両プロジェクトとも本ドキュメントの Feature-based + shared/ 構造に従う。コードを生成・移動するときは必ず参照すること。
+
 ## 概要
 
 **Feature-basedアーキテクチャ**は、機能単位でコードを分割する設計手法です。各機能は独立したモジュールとして管理され、横断的に使う汎用リソースは`shared/`に配置します。

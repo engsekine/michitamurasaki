@@ -20,7 +20,7 @@ GitHub Actions に 2 本のワークフローを追加する。**`ci.yml`** は 
 
 **Target Platform**: GitHub Actions（GitHub ホストランナー）
 
-**Project Type**: npm workspaces モノレポ（ルート `package-lock.json`、対象 workspace は `service-front`。`admin-front` は workspaces 宣言のみで実体なし → CI 対象外）
+**Project Type**: npm workspaces モノレポ（ルート `package-lock.json`、対象 workspace は `service-front` と `admin-front`。admin-front も CI 対象（`lint-admin` / `type-check-admin` / `unit-test-admin` ジョブ。2026-07-02 追加））
 
 **Performance Goals**: PR の軽量チェックは並列実行 + npm キャッシュで **10 分以内**（SC-001）。連続 push は `concurrency` で旧実行をキャンセル（FR-003 / SC-004）
 
@@ -70,7 +70,7 @@ data-model.md / contracts/ は対象外（DB エンティティ・外部公開 A
     ├── ci.yml           # PR + main push: 軽量チェック（並列 5 ジョブ）
     └── full-test.yml    # main push のみ: E2E / a11y / Storybook テスト
 
-docs/
+specs/005-github-actions-ci/
 └── ci.md                # branch protection（required checks）の手動設定手順
 ```
 
@@ -107,9 +107,13 @@ docs/
 
 E2E も CI ランナー内の Supabase ローカルスタックで完結するため、リポジトリシークレットを一切登録しない。フォーク PR でも `ci.yml` の全ジョブが実行できる（`full-test.yml` は main push のみなのでフォーク問題自体が発生しない）。
 
+GitHub Actions の permissions は `contents: read` に最小化（2026-07-02）。
+
 ### Action のバージョン方針
 
 サードパーティ Action はメジャーバージョンタグで固定（`actions/checkout@v4` / `actions/setup-node@v4` / `supabase/setup-cli@v1`）。SHA ピン留めは運用コストが上回るため Phase 1 では行わない（research.md Decision 5）。
+
+Supabase CLI はバージョン固定（2.107.0）。`version: latest` は GitHub API レート制限で失敗するため。更新時は ci.yml の `version` を手動で上げる。
 
 ### branch protection（Assumption の手動設定）
 

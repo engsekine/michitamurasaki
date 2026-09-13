@@ -1,17 +1,16 @@
 'use client';
 
-import { Button } from '@repo/ui/components/button';
 import type { Route } from 'next';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-
 import { DiveCard } from '@/features/dives/components/client/DiveCard';
 import { DiveSearchBar } from '@/features/dives/components/client/DiveSearchBar';
 import { ExportMenu } from '@/features/dives/components/client/ExportMenu';
 import { useDives } from '@/features/dives/hooks/useDives';
 import { filterToSearchParams, isSameFilter } from '@/features/dives/lib/search-params';
 import type { DiveListFilter, DiveListPage } from '@/features/dives/types';
+import { Button, buttonVariants } from '@/shared/components/ui/Button';
 
 interface DiveListProps {
     /** SSR で取得した初回データ（initialFilter に対応） */
@@ -119,10 +118,7 @@ export const DiveList = ({ initialPage, initialFilter = {} }: DiveListProps) => 
             {items.length === 0 && !hasActiveFilter && (
                 <div className="flex flex-col items-center gap-3 rounded-lg border border-border border-dashed bg-background p-12 text-center">
                     <p className="text-muted-foreground">ログがまだありません</p>
-                    <Link
-                        href="/dives/new"
-                        className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm transition-opacity hover:opacity-90"
-                    >
+                    <Link href="/dives/new" className={buttonVariants({ variant: 'default' })}>
                         最初のログを記録しよう
                     </Link>
                 </div>

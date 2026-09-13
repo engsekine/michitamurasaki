@@ -43,6 +43,41 @@ export const UserProfile = ({ userId, name, avatarUrl }: UserProfileProps) => {
 - 重い処理は `useMemo` / `useCallback` でメモ化する
 - 不要な再レンダリングを避けるため、`React.memo` の使用を検討する
 
+## UI ライブラリ（shadcn / @repo/ui）のラップ
+
+- **shadcn / `@repo/ui` のコンポーネントを直接編集しない**（複数アプリで共有するため、片方都合の変更で他方が壊れる）
+- アプリ側から `@repo/ui/components/*` を **直接 import しない**。必ず `src/shared/components/ui/<Name>/` のラッパー経由で import する
+- ラッパーはフォルダ構成規約（`rules/folder-structure.md`）に従い `<Name>/<Name>.tsx` + `index.ts` で配置する
+  - スタイルを変えないものは **再 export のみ**（将来の上書きの単一窓口として先に用意しておく）
+  - スタイル・挙動を変えるものは、`cn`（tailwind-merge）で className を上書きする。`@repo/ui` 側の値は tailwind-merge により後勝ちで置き換わる
+
+```tsx
+// Bad: shadcn を直接 import／直接編集
+import { Button } from '@repo/ui/components/button';
+
+// Good: service-front 側のラッパー経由
+import { Button } from '@/shared/components/ui/Button';
+```
+
+```tsx
+// ラッパー例（見た目を上書きする場合）: src/shared/components/ui/Button/Button.tsx
+import { Button as UiButton, buttonVariants as uiButtonVariants } from '@repo/ui/components/button';
+import type { ComponentProps } from 'react';
+
+import { cn } from '@/lib/utils';
+
+type ButtonVariantOptions = Parameters<typeof uiButtonVariants>[0];
+
+// Link に渡す用途。@repo/ui の font-medium は tailwind-merge で font-bold に置き換わる
+export const buttonVariants = (options?: ButtonVariantOptions): string => cn(uiButtonVariants(options), 'font-bold');
+
+export const Button = ({ className, ...props }: ComponentProps<typeof UiButton>) => (
+    <UiButton className={cn('font-bold', className)} {...props} />
+);
+```
+
+- ブランドカラー等のトークンレベルの変更は、各アプリの `globals.css` で CSS カスタムプロパティ（`--primary` 等）を上書きする（`@repo/ui` の token を直接書き換えない）
+
 ## React Hook Form
 
 - `register`、`control`、`formState` などの react-hook-form オブジェクトをそのまま Props として子コンポーネントに渡さない

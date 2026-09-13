@@ -3,6 +3,7 @@ import type { Database } from '@repo/supabase';
 import { requireAdmin } from '@/features/admin-auth';
 import { listResource } from '@/shared/lib/resource/queries';
 import type { ListParams, ResourceListResult } from '@/shared/lib/resource/types';
+import { createAdminServiceClient } from '@/shared/lib/supabase/admin';
 import { createClient } from '@/shared/lib/supabase/server';
 
 type UserDetailRow = Database['public']['Tables']['user_details']['Row'];
@@ -73,4 +74,20 @@ export const getUserDetail = async (userId: string): Promise<UserDetailView | nu
     if (countError) throw countError;
 
     return { detail, diveCount: count ?? 0 };
+};
+
+/**
+ * 対象ユーザーの 2 要素認証の有効状態を返す（023 / FR-016）。
+ * MFA 要素は auth スキーマ管理のため、service_role の Admin API で参照する。
+ * ユーザー詳細で解除ボタンの出し分けに使う。取得失敗時は enabled=false（安全側）。
+ */
+export const getUserMfaStatus = async (userId: string): Promise<{ enabled: boolean }> => {
+    await requireAdmin();
+
+    const service = createAdminServiceClient();
+    const { data, error } = await service.auth.admin.mfa.listFactors({ userId });
+    if (error || !data) return { enabled: false };
+
+    const factors = data.factors ?? [];
+    return { enabled: factors.some((factor) => factor.status === 'verified') };
 };

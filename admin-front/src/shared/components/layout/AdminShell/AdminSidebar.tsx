@@ -14,6 +14,7 @@ const NAV_ITEMS = [
     { href: '/users', label: 'ユーザー' },
     { href: '/dives', label: 'ダイブログ' },
     { href: '/dive-sites', label: 'ダイブサイト' },
+    { href: '/inquiries', label: 'お問い合わせ' },
     { href: '/audit-logs', label: '操作ログ' },
 ] as const;
 

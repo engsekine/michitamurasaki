@@ -17,6 +17,28 @@ describe('planSchema', () => {
         expect(result.notes).toBeNull();
     });
 
+    it('diveShopId は未選択（空文字・未指定）が null に正規化され、指定時はそのまま通る（033）', async () => {
+        const unselected = await planSchema.validate({ ...validPlan, diveShopId: '' });
+        expect(unselected.diveShopId).toBeNull();
+
+        const omitted = await planSchema.validate(validPlan);
+        expect(omitted.diveShopId).toBeNull();
+
+        const selected = await planSchema.validate({ ...validPlan, diveShopId: 'shop-1' });
+        expect(selected.diveShopId).toBe('shop-1');
+    });
+
+    it('diveShopId は未選択（空文字・未指定）が null に正規化され、指定時はそのまま通る（033）', async () => {
+        const unselected = await planSchema.validate({ ...validPlan, diveShopId: '' });
+        expect(unselected.diveShopId).toBeNull();
+
+        const omitted = await planSchema.validate(validPlan);
+        expect(omitted.diveShopId).toBeNull();
+
+        const selected = await planSchema.validate({ ...validPlan, diveShopId: 'shop-1' });
+        expect(selected.diveShopId).toBe('shop-1');
+    });
+
     it('予定日が空だとエラーになる', async () => {
         await expect(planSchema.validate({ ...validPlan, plannedOn: '' })).rejects.toThrow('予定日を入力してください');
     });

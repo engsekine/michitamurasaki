@@ -82,9 +82,12 @@ const buildSupabaseMock = (options: SupabaseMockOptions = {}) => {
             return { insert: tagsInsert, delete: tagsDelete };
         }
         if (table === 'dives') {
+            /** select().eq('id').eq('user_id').maybeSingle() のチェーンを再現（本人所有チェック） */
             return {
                 select: vi.fn().mockReturnValue({
-                    eq: vi.fn().mockReturnValue({ maybeSingle: divesMaybeSingle }),
+                    eq: vi.fn().mockReturnValue({
+                        eq: vi.fn().mockReturnValue({ maybeSingle: divesMaybeSingle }),
+                    }),
                 }),
             };
         }

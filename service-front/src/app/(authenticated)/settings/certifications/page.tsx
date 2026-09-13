@@ -1,6 +1,4 @@
-import { buttonVariants } from '@repo/ui/components/button';
 import Link from 'next/link';
-
 import {
     AGENCY_LABELS,
     CertificationList,
@@ -8,6 +6,8 @@ import {
     getCertifications,
 } from '@/features/certifications';
 import { Breadcrumbs } from '@/shared/components/layout/Breadcrumbs';
+import { Heading } from '@/shared/components/typography/Heading';
+import { buttonVariants } from '@/shared/components/ui/Button';
 import { generatePageMetadata } from '@/shared/config/metadata';
 import { todayInJst } from '@/shared/lib/date';
 
@@ -28,7 +28,7 @@ export default async function CertificationsPage() {
             <Breadcrumbs breadcrumbs={[{ name: '保有資格' }]} />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
                 <div className="flex items-center justify-between">
-                    <h1 className="font-semibold text-2xl">保有資格</h1>
+                    <Heading level={1}>保有資格</Heading>
                     <Link href="/settings/certifications/new" className={buttonVariants({ variant: 'default' })}>
                         資格を登録
                     </Link>

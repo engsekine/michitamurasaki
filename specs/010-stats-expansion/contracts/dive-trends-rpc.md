@@ -10,7 +10,7 @@
 |---|---|
 | 引数 | なし |
 | 戻り値 | `{ year: number, dive_count: number }[]`（year 昇順） |
-| 認可 | `security invoker` + RLS。呼び出しユーザー本人のダイブのみ集計 |
+| 認可 | `security invoker`。本人限定は関数内の `where user_id = (select auth.uid())` が保証する（RLS は 021 の公開読み取りポリシー以降、他人の公開ログも可視にするため単独では不十分） |
 | 0 件時 | 空配列（エラーにしない） |
 | 不変条件 | `dive_count >= 1`（0 本の年は行を返さない） |
 
@@ -20,8 +20,8 @@
 |---|---|
 | 引数 | `months_back: number`（省略時 12。1 未満は 1 として扱う） |
 | 戻り値 | `{ month: 'YYYY-MM', dive_count: number, avg_water_temp_c: number \| null, max_depth_m: number }[]`（month 昇順） |
-| 期間 | 現在月を含む直近 `months_back` ヶ月 |
-| 認可 | `security invoker` + RLS。本人のダイブのみ |
+| 期間 | 現在月を含む直近 `months_back` ヶ月。RPC の基準月は DB の UTC 日付のため、JST 1 日 0:00〜8:59 は 1 ヶ月手前から始まるスーパーセットを返しうる（アプリ側 `fillMonthlyGaps` が余分な月を捨てるため表示には影響しない） |
+| 認可 | `security invoker`。本人限定は関数内の `where user_id = (select auth.uid())` が保証する（RLS は 021 の公開読み取りポリシー以降、他人の公開ログも可視にするため単独では不十分） |
 | 0 件時 | 空配列 |
 | 不変条件 | `dive_count >= 1`。`avg_water_temp_c` は水温入力ログが 0 件の月のみ null |
 

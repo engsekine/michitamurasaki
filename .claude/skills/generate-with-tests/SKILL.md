@@ -2,6 +2,7 @@
 name: generate-with-tests
 description: 指定されたコンポーネント / 機能ファイルに対し、Vitest 単体テスト・Storybook story・Playwright a11y テストを並列でまとめて生成する。
 user-invocable: true
+argument-hint: "<対象ファイル絶対パス> [--skip-vitest] [--skip-storybook] [--skip-playwright]"
 ---
 
 コードと一緒に Vitest / Storybook / Playwright のテストを並列生成するスキル。3 つのサブエージェントを `Agent` ツールで同時起動し、結果を集約してファイル書き込みと整合確認まで行う。
@@ -18,8 +19,10 @@ user-invocable: true
 ## 前提確認
 
 1. 対象ファイルが存在する（無ければ「ファイルが見つかりません」と返して終了）
-2. 対象が `service-front/src/` または `service-front/.storybook/` 配下である（外なら警告）
+2. 対象が `service-front/src/`・`service-front/.storybook/`・`admin-front/src/` のいずれかの配下である（外なら警告）
 3. 対象が `*.test.tsx` `*.stories.tsx` 等のテスト/story ファイル自身ではない
+
+**admin-front の場合**: Storybook 未採用のため storybook-story-writer は起動せず自動 SKIP する（`--skip-storybook` 指定と同じ扱い。SKIP 理由は「admin-front は Storybook 未採用」）。
 
 ## 手順
 
@@ -70,7 +73,7 @@ Props 型: <型定義の抜粋>
 このコンポーネントに対する Vitest 単体テストを生成してください。
 co-locate 先: <同一ディレクトリ>/<ComponentName>.test.tsx
 規約は .claude/rules/typescript.md, .claude/rules/react.md および
-service-front/vitest.config.ts に従ってください。
+<対象ワークスペース（service-front / admin-front）>/vitest.config.ts に従ってください。
 ```
 
 #### storybook-story-writer に渡すプロンプト
@@ -110,10 +113,10 @@ title 規則:
 
 ### 4. 整合確認
 
-書き込み完了後に以下を実行（service-front 内で）:
+書き込み完了後に、対象ファイルが属するワークスペースに対して実行:
 
 ```bash
-npm run type-check --workspace service-front
+npm run type-check --workspace <service-front または admin-front>
 ```
 
 エラーがあれば該当ファイル・行と共に「⚠️ 型エラー」として報告。

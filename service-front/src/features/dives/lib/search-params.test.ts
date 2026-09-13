@@ -109,3 +109,41 @@ describe('isSameFilter', () => {
         expect(isSameFilter({}, { location: '伊豆' })).toBe(false);
     });
 });
+
+describe('parseDiveFilter - バディ（spec 021 FR-022）', () => {
+    const validUuid = '123e4567-e89b-12d3-a456-426614174000';
+
+    it('有効な uuid の buddy を buddyUserId に採用する', () => {
+        const filter = parseDiveFilter(new URLSearchParams(`buddy=${validUuid}`));
+        expect(filter.buddyUserId).toBe(validUuid);
+    });
+
+    it('uuid 形式でない buddy は無視する', () => {
+        const filter = parseDiveFilter(new URLSearchParams('buddy=not-a-uuid'));
+        expect(filter.buddyUserId).toBeUndefined();
+    });
+
+    it('buddy_name を部分一致条件として採用する', () => {
+        const filter = parseDiveFilter(new URLSearchParams('buddy_name=海太郎'));
+        expect(filter.buddyName).toBe('海太郎');
+    });
+
+    it('buddy_name は 100 文字に丸める', () => {
+        const long = 'あ'.repeat(150);
+        const filter = parseDiveFilter(new URLSearchParams(`buddy_name=${long}`));
+        expect(filter.buddyName).toHaveLength(100);
+    });
+});
+
+describe('filterToSearchParams - バディ', () => {
+    it('buddyUserId / buddyName を URL パラメータに反映する', () => {
+        const params = filterToSearchParams({ buddyUserId: 'u1', buddyName: '海太郎' });
+        expect(params.get('buddy')).toBe('u1');
+        expect(params.get('buddy_name')).toBe('海太郎');
+    });
+
+    it('isSameFilter はバディ条件の差異を検出する', () => {
+        expect(isSameFilter({ buddyName: 'A' }, { buddyName: 'B' })).toBe(false);
+        expect(isSameFilter({ buddyUserId: 'u1' }, { buddyUserId: 'u1' })).toBe(true);
+    });
+});

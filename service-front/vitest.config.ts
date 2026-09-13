@@ -9,6 +9,11 @@ const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(file
 export default defineConfig({
     resolve: {
         tsconfigPaths: true,
+        alias: {
+            // `server-only` は実行環境に存在しない番兵モジュール。空 stub に逃がして
+            // createClient 系クエリ（'server-only' 付き）の単体テストを実行可能にする
+            'server-only': path.resolve(dirname, 'vitest.server-only-stub.ts'),
+        },
     },
     test: {
         coverage: {

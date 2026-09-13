@@ -31,7 +31,7 @@ export const getPlan = async (id: string): Promise<PlanWithPacking | null> => {
 
     const { data, error } = await supabase
         .from('dive_plans')
-        .select('*, plan_packing_items(*)')
+        .select('*, plan_packing_items(*), dive_shops(id, name)')
         .eq('id', id)
         .maybeSingle();
 
@@ -40,41 +40,48 @@ export const getPlan = async (id: string): Promise<PlanWithPacking | null> => {
     }
     if (!data) return null;
 
-    const { plan_packing_items: itemRows, ...planRow } = data;
+    const { plan_packing_items: itemRows, dive_shops: shopRow, ...planRow } = data;
     const packingItems = [...itemRows].sort((a, b) => a.position - b.position).map(mapPackingItem);
 
-    return { ...mapPlan(planRow), packingItems };
+    return {
+        ...mapPlan(planRow),
+        packingItems,
+        packingCompletedAt: planRow.packing_completed_at,
+        shop: shopRow ? { id: shopRow.id, name: shopRow.name } : null,
+    };
 };
 
 /**
- * TOP「次の予定」カード用: 最も近い未来（今日含む）の予定 + 持ち物進捗（FR-007 / FR-009)。
- * 同日複数は作成日時が新しい方を優先（spec Edge Case）。予定なしは null。
- * 進捗は都度集計する（research.md Decision 6）。
+ * 今日以降（今日含む）の予定 + 持ち物全件を近い順に取得する（FR-007 / FR-009)。
+ * TOP「次の予定」は limit で件数を絞り、予定一覧（/plans）の「これからの予定」は
+ * limit 省略で全件取得する。同日複数は作成日時が新しい方を優先（spec Edge Case）。予定なしは []。
+ * 持ち物はカード上でチェック操作するため全件返す（進捗は表示側で集計する）。
  */
-export const getNextPlanWithProgress = async (): Promise<NextPlanSummary | null> => {
+export const listNextPlansWithProgress = async (limit?: number): Promise<NextPlanSummary[]> => {
     const supabase = await createClient();
     const today = todayInJst();
 
-    const { data, error } = await supabase
+    const query = supabase
         .from('dive_plans')
-        .select('id, planned_on, location, plan_packing_items(is_checked)')
+        .select('id, planned_on, location, notes, packing_completed_at, plan_packing_items(*)')
         .gte('planned_on', today)
         .order('planned_on', { ascending: true })
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
 
-    if (error) {
-        throw new Error(`[getNextPlanWithProgress] supabase error: ${error.message}`);
+    // limit 省略時は全件（/plans の「これからの予定」用）
+    const { data, error } = await (limit === undefined ? query : query.limit(limit));
+
+    if (error || !data) {
+        throw new Error(`[listNextPlansWithProgress] supabase error: ${error?.message ?? 'no data'}`);
     }
-    if (!data) return null;
 
-    return {
-        id: data.id,
-        plannedOn: data.planned_on,
-        location: data.location,
-        daysUntil: daysUntil(data.planned_on, today),
-        checkedCount: data.plan_packing_items.filter((item) => item.is_checked).length,
-        totalCount: data.plan_packing_items.length,
-    };
+    return data.map((row) => ({
+        id: row.id,
+        plannedOn: row.planned_on,
+        location: row.location,
+        notes: row.notes,
+        daysUntil: daysUntil(row.planned_on, today),
+        packingItems: [...row.plan_packing_items].sort((a, b) => a.position - b.position).map(mapPackingItem),
+        packingCompletedAt: row.packing_completed_at,
+    }));
 };

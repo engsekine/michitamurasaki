@@ -4,7 +4,7 @@ import { calcBlankDays } from '@/features/dashboard/lib/blankDays';
 import { calcOverhaulStatus } from '@/features/dashboard/lib/overhaul';
 import { fillMonthlyGaps, fillYearlyGaps } from '@/features/dashboard/lib/trends';
 import type {
-    DashboardHero,
+    DashboardHeroData,
     DiveStats,
     MonthlyDiveStat,
     PrimaryRegulatorStatus,
@@ -57,8 +57,8 @@ export const getYearlyDiveCounts = async (): Promise<YearlyDiveCount[]> => {
 };
 
 /**
- * 直近 12 ヶ月の月別統計（本数 / 平均水温 / 最大深度）を取得する（FR-002 / FR-004 / FR-005）。
- * データのない月は 0 本・null で補完し、ログの有無に関わらず常に 12 要素を返す。
+ * 直近 12 ヶ月の月別ダイビング本数を取得する（FR-002）。
+ * データのない月は 0 本で補完し、ログの有無に関わらず常に 12 要素を返す。
  */
 export const getMonthlyDiveStats = async (): Promise<MonthlyDiveStat[]> => {
     const supabase = await createClient();
@@ -75,8 +75,6 @@ export const getMonthlyDiveStats = async (): Promise<MonthlyDiveStat[]> => {
         data.map((row) => ({
             month: row.month,
             diveCount: Number(row.dive_count),
-            avgWaterTempC: toNumber(row.avg_water_temp_c),
-            maxDepthM: toNumber(row.max_depth_m),
         })),
         baseMonth,
         MONTHLY_TREND_MONTHS,
@@ -101,9 +99,16 @@ export const getPrimaryRegulatorStatus = async (): Promise<PrimaryRegulatorStatu
     }
     if (!regulator) return null;
 
+    // 公開読み取り RLS で他人の公開ログを数えないよう本人に限定する
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
     const { count, error: countError } = await supabase
         .from('dives')
         .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('dive_date', regulator.last_overhauled_on);
 
     if (countError) {
@@ -128,12 +133,23 @@ export const getPrimaryRegulatorStatus = async (): Promise<PrimaryRegulatorStatu
 };
 
 /** ヒーロー用データ（表示名 + ブランク日数）を取得する（FR-002） */
-export const getDashboardHero = async (): Promise<DashboardHero> => {
+export const getDashboardHero = async (): Promise<DashboardHeroData> => {
     const supabase = await createClient();
+
+    // 最終ダイブ日は本人のログから求める。公開読み取り RLS で他人の公開ログを拾わないよう user_id で絞る
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
 
     const [detailsResult, lastDiveResult] = await Promise.all([
         supabase.from('user_details').select('nickname').maybeSingle(),
-        supabase.from('dives').select('dive_date').order('dive_date', { ascending: false }).limit(1).maybeSingle(),
+        supabase
+            .from('dives')
+            .select('dive_date')
+            .eq('user_id', user?.id ?? '')
+            .order('dive_date', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
     ]);
 
     if (detailsResult.error) {
@@ -148,5 +164,6 @@ export const getDashboardHero = async (): Promise<DashboardHero> => {
     return {
         nickname: detailsResult.data?.nickname ?? null,
         blankDays: calcBlankDays(lastDiveOn, todayInJst()),
+        lastDiveOn,
     };
 };

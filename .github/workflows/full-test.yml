@@ -1,24 +1,33 @@
-# 重いテスト（E2E / a11y / Storybook テスト）— main push のみ（FR-011）
+# 重いテスト（E2E / a11y / Storybook テスト）— 手動実行
+# 自動トリガー（main push / FR-011）は手動運用への移行で廃止（2026-07-17）。
+# Actions タブの「Run workflow」から対象ブランチを選んで実行する。
 # シークレット不使用: Supabase ローカルスタックの公開デフォルトキーをジョブ内で生成する（FR-008）
 name: Full Test
 
 on:
-    push:
-        branches: [main]
+    workflow_dispatch:
 
 concurrency:
     group: full-test-${{ github.ref }}
     cancel-in-progress: false
 
+# GITHUB_TOKEN は最小権限に固定（依存 install スクリプト経由のトークン窃取対策）
+permissions:
+    contents: read
+
 jobs:
     e2e:
         runs-on: ubuntu-latest
         timeout-minutes: 30
+        env:
+            # config.toml の auth.email.smtp.enabled が env(SMTP_ENABLED) を参照するため、
+            # 未定義だと supabase CLI が config パースで失敗する。CI はメール実送信しないので false 固定
+            SMTP_ENABLED: false
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
-                  node-version: 22
+                  node-version: 24
                   cache: npm
             - run: npm ci
             - uses: supabase/setup-cli@v1
@@ -60,7 +69,7 @@ jobs:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
-                  node-version: 22
+                  node-version: 24
                   cache: npm
             - run: npm ci
             - name: Playwright ブラウザをインストール

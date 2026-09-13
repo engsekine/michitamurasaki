@@ -35,7 +35,8 @@ Phase 2 で「公開機能」を実装する予定があり、`is_public` / `pub
 
 | カラム | 型 | NULL | デフォルト | 説明 |
 |-------|----|------|----------|------|
-| `location` | `text` | NO | — | ポイント名（必須）。120 文字以内 |
+| `dive_site_id` | `uuid` | YES | — | ダイブサイト（マスタ）への参照（任意）。設定時は `location` を null とし表示名はマスタから取得（`20260616100100`、specs/011 参照） |
+| `location` | `text` | YES | — | 自由入力のポイント名。120 文字以内。`dive_site_id` と排他でどちらか一方が必須（`dives_site_or_location_check`） |
 | `dive_type` | `text` | YES | — | ボート / ビーチ / ドリフト など。40 文字以内 |
 
 ### コンディション
@@ -93,6 +94,7 @@ Phase 2 で「公開機能」を実装する予定があり、`is_public` / `pub
 |-------|----|------|----------|------|
 | `created_at` | `timestamptz` | NO | `now()` | 作成日時 |
 | `updated_at` | `timestamptz` | NO | `now()` | 更新日時（トリガで自動更新） |
+| `deleted_at` | `timestamptz` | YES | — | 論理削除日時。null の行のみ有効（管理画面のソフトデリートで設定。`20260620100300`、specs/015 参照） |
 
 ## 3. 制約
 
@@ -105,8 +107,9 @@ Phase 2 で「公開機能」を実装する予定があり、`is_public` / `pub
 | 制約名 | カラム | 参照先 | ON DELETE |
 |--------|------|------|----------|
 | `dives_user_id_fkey` | `user_id` | `public.users(id)` | `CASCADE` |
+| `dives_dive_site_id_fkey` | `dive_site_id` | `public.dive_sites(id)` | `RESTRICT` |
 
-ユーザー削除時に紐づくダイブログもまとめて削除される。
+ユーザー削除時に紐づくダイブログもまとめて削除される。参照中のダイブサイトの削除は `RESTRICT` で防ぐ（011 FR-009 の DB 安全網）。
 
 ### ユニーク制約
 
@@ -120,8 +123,8 @@ Phase 2 で「公開機能」を実装する予定があり、`is_public` / `pub
 | 制約名 | 内容 |
 |--------|------|
 | `dives_dive_number_check` | `dive_number is null or dive_number >= 0` |
-| `dives_dive_date_check` | `dive_date >= '1900-01-01' and dive_date <= current_date` |
-| `dives_location_check` | `length(trim(location)) > 0` |
+| `dives_dive_date_check` | `dive_date >= '1900-01-01' and dive_date <= (now() at time zone 'Asia/Tokyo')::date`（JST の当日まで。UTC の `current_date` だと JST 午前に当日が弾かれるため JST 基準に統一） |
+| `dives_site_or_location_check` | `(dive_site_id is not null and location is null) or (dive_site_id is null and location is not null and length(trim(location)) > 0)`（旧 `dives_location_check` を置換。`20260616100100`） |
 | `dives_visibility_m_check` | `visibility_m is null or visibility_m >= 0` |
 | `dives_max_depth_m_check` | `max_depth_m > 0 and max_depth_m <= 300` |
 | `dives_avg_depth_m_check` | `avg_depth_m is null or (avg_depth_m > 0 and avg_depth_m <= 300)` |
@@ -153,22 +156,27 @@ Phase 2 で「公開機能」を実装する予定があり、`is_public` / `pub
 | `idx_dives_user_id_location` | `(user_id, location)` | btree | ポイント名検索 |
 | `dives_user_id_dive_number_key` | `(user_id, dive_number) where dive_number is not null` | partial unique btree | ダイブ番号のユーザー内一意制約（兼インデックス） |
 | `idx_dives_public_slug` | `(public_slug) where is_public = true` | 部分 btree | Phase 2 の公開 URL 解決 |
+| `idx_dives_user_id_dive_site_id` | `(user_id, dive_site_id)` | btree | 本人のサイト別実績集計用（FK インデックス兼用。`20260616100100`） |
+| `idx_dives_active` | `(user_id) where deleted_at is null` | 部分 btree | 有効行（未削除）の絞り込み用（`20260620100300`） |
+| `idx_dives_public_user_date` | `(user_id, dive_date desc, id desc) where is_public = true` | 部分 btree | タイムライン / 公開ログ一覧のキーセットページネーション用（`20260630100200`） |
 
 主キー `(id)` および `public_slug` のユニーク暗黙インデックスは別途存在。
 
 ## 5. RLS（Row Level Security）
 
-RLS は **有効**。所有者のみ全 CRUD 可能。
+RLS は **有効**。書き込みは所有者のみ、読み取りは「本人の未削除ログ」∪「公開の未削除ログ」。
 
 | ポリシー名 | コマンド | 条件 |
 |----------|---------|------|
-| `users can read own dives` | `SELECT` | `(select auth.uid()) = user_id` |
+| `users can read own dives` | `SELECT` | `(select auth.uid()) = user_id and deleted_at is null`（`20260620100500` で未削除条件を追加） |
+| `authenticated can read public dives` | `SELECT`（`to authenticated`） | `is_public = true and deleted_at is null`（`20260630100200`、spec 021 FR-010） |
 | `users can insert own dives` | `INSERT` | `(select auth.uid()) = user_id`（`with check`） |
 | `users can update own dives` | `UPDATE` | `(select auth.uid()) = user_id`（`using` / `with check` 両方） |
 | `users can delete own dives` | `DELETE` | `(select auth.uid()) = user_id` |
 
 - `auth.uid()` は `(select ...)` でラップし、行ごとに再評価されないようにしている（Supabase の `auth_rls_initplan` 警告対応）
-- Phase 2 で公開機能を実装する際は、`is_public = true` の行に対する SELECT ポリシーを追加する想定
+- SELECT は複数ポリシーが OR 結合されるため、認証ユーザーの閲覧可能集合は「本人のログ」∪「公開ログ」になる。非公開かつ他人のログは引き続き不可視
+- 論理削除（`deleted_at`）済みのログは本人・公開いずれの読み取りでも露出しない（管理者向けポリシーは復元のため削除済みも参照可）
 
 ## 6. トリガー
 
@@ -208,3 +216,7 @@ erDiagram
 | 日付 | マイグレーション | 変更内容 |
 |------|---------------|---------|
 | 2026-05-25 | `20260525130000_create_dives.sql` | 初版作成 |
+| 2026-06-16 | `20260616100100_add_dives_dive_site_id.sql` | `dive_site_id` 追加・`location` nullable 化・`dives_site_or_location_check` 追加・`idx_dives_user_id_dive_site_id` 追加 |
+| 2026-06-20 | `20260620100300_add_soft_delete_columns.sql` | `deleted_at` 追加・`idx_dives_active` 追加 |
+| 2026-06-20 | `20260620100500_filter_soft_deleted_from_user_reads.sql` | `users can read own dives` に `deleted_at is null` 条件を追加 |
+| 2026-06-30 | `20260630100200_add_dives_public_read_policy.sql` | 公開読み取りポリシー `authenticated can read public dives` 追加・`idx_dives_public_user_date` 追加 |

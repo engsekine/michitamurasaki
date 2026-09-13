@@ -18,7 +18,7 @@
 MVP スコープの補足:
 
 - **管理者管理 UI（admin_users の追加/無効化画面）は MVP 外**とし、初期管理者は seed 運用とする（FR-015 の保護ロジックは `admin_users` への全操作経路に適用）。必要になった時点で別機能として画面を追加する。
-- **users / user_details の編集は汎用テーブルエディタ経由**で提供する（特化画面は閲覧中心。個人情報カラムは許可リストで露出制御）。dive-sites・dives は専用の作成/編集フォームを持つ。
+- **users / user_details は閲覧のみ（編集手段は未提供）**。汎用テーブルエディタは閲覧 + 行削除のみで行編集は未実装（特化画面は閲覧中心。個人情報カラムは許可リストで露出制御）。dive-sites・dives は専用の作成/編集フォームを持つ。
 
 > 補足: spec 末尾の「service-front が admin-front に改名された」というリポジトリ状態は本計画時点で解消済み（`service-front` は無傷、`git status` クリーン）。ルート `package.json` の `workspaces` には既に `admin-front` が登録済みで、本機能はそのディレクトリを新規作成する。
 

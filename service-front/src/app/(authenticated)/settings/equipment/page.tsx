@@ -1,8 +1,8 @@
-import { buttonVariants } from '@repo/ui/components/button';
 import Link from 'next/link';
-
 import { DeleteRegulatorButton, listRegulators, RegulatorList } from '@/features/regulators';
 import { Breadcrumbs } from '@/shared/components/layout/Breadcrumbs';
+import { Heading } from '@/shared/components/typography/Heading';
+import { buttonVariants } from '@/shared/components/ui/Button';
 import { generatePageMetadata } from '@/shared/config/metadata';
 
 export const metadata = generatePageMetadata(
@@ -22,7 +22,7 @@ export default async function EquipmentPage() {
             <Breadcrumbs breadcrumbs={[{ name: '機材設定' }]} />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
                 <div className="flex items-center justify-between">
-                    <h1 className="font-semibold text-2xl">機材設定</h1>
+                    <Heading level={1}>機材設定</Heading>
                     <Link href="/settings/equipment/new" className={buttonVariants({ variant: 'default' })}>
                         機材を登録
                     </Link>

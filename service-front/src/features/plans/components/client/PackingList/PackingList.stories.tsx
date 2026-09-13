@@ -5,9 +5,9 @@ import type { PackingItem } from '@/features/plans/types';
 import { PackingList } from './PackingList';
 
 const items: PackingItem[] = [
-    { id: 'item-1', name: 'マスク', isChecked: true, position: 0 },
-    { id: 'item-2', name: 'フィン', isChecked: false, position: 1 },
-    { id: 'item-3', name: 'レギュレーター', isChecked: false, position: 2 },
+    { id: 'item-1', name: 'マスク', isChecked: true, isConfirmed: false, position: 0 },
+    { id: 'item-2', name: 'フィン', isChecked: false, isConfirmed: false, position: 1 },
+    { id: 'item-3', name: 'レギュレーター', isChecked: false, isConfirmed: false, position: 2 },
 ];
 
 const meta = {

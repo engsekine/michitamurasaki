@@ -1,0 +1,1 @@
+export { canMovePlanToLog } from './canMovePlanToLog';

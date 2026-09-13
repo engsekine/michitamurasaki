@@ -1,0 +1,1 @@
+export { ShopMap } from './ShopMap';

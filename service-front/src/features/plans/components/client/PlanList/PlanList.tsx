@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-
+import { canMovePlanToLog } from '@/features/plans/lib/canMovePlanToLog';
 import { daysUntil } from '@/features/plans/lib/days-until';
 import type { Plan } from '@/features/plans/types';
+import { Heading } from '@/shared/components/typography/Heading';
+import { buttonVariants } from '@/shared/components/ui/Button';
+import { formatJstDate } from '@/shared/lib/date';
 import { getTidePhase, TIDE_PHASE_LABELS } from '@/shared/lib/tide';
 
 interface PlanListProps {
@@ -12,11 +15,6 @@ interface PlanListProps {
     today: string;
 }
 
-const formatDate = (isoDate: string): string => {
-    const [y, m, d] = isoDate.split('-');
-    return `${y}/${m}/${d}`;
-};
-
 /** 残り日数の表示文言（0 = 今日、正 = あと N 日） */
 const formatDaysUntil = (days: number): string => (days === 0 ? '今日' : `あと${days}日`);
 
@@ -24,6 +22,8 @@ interface PlanCardProps {
     plan: Plan;
     /** 残り日数の表示文言。終了済みの予定は null（残り日数の代わりにバッジを表示する） */
     daysLabel: string | null;
+    /** JST の今日（YYYY-MM-DD）。移動導線の出し分け判定に使う */
+    today: string;
 }
 
 export const PlanList = ({ plans, today }: PlanListProps) => {
@@ -36,10 +36,7 @@ export const PlanList = ({ plans, today }: PlanListProps) => {
         return (
             <div className="flex flex-col items-center gap-3 rounded-lg border border-border border-dashed bg-background p-12 text-center">
                 <p className="text-muted-foreground">予定がまだありません</p>
-                <Link
-                    href="/plans/new"
-                    className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm transition-opacity hover:opacity-90"
-                >
+                <Link href="/plans/new" className={buttonVariants({ variant: 'default' })}>
                     次のダイビングを計画しよう
                 </Link>
             </div>
@@ -50,13 +47,17 @@ export const PlanList = ({ plans, today }: PlanListProps) => {
         <div className="flex flex-col gap-6">
             {upcomingPlans.length > 0 && (
                 <section aria-labelledby="upcoming-plans-heading" className="flex flex-col gap-3">
-                    <h2 id="upcoming-plans-heading" className="font-semibold text-foreground text-lg">
+                    <Heading level={2} id="upcoming-plans-heading">
                         これからの予定
-                    </h2>
+                    </Heading>
                     <ul className="flex flex-col gap-3">
                         {upcomingPlans.map((plan) => (
                             <li key={plan.id}>
-                                <PlanCard plan={plan} daysLabel={formatDaysUntil(daysUntil(plan.plannedOn, today))} />
+                                <PlanCard
+                                    plan={plan}
+                                    daysLabel={formatDaysUntil(daysUntil(plan.plannedOn, today))}
+                                    today={today}
+                                />
                             </li>
                         ))}
                     </ul>
@@ -65,13 +66,13 @@ export const PlanList = ({ plans, today }: PlanListProps) => {
 
             {finishedPlans.length > 0 && (
                 <section aria-labelledby="finished-plans-heading" className="flex flex-col gap-3">
-                    <h2 id="finished-plans-heading" className="font-semibold text-foreground text-lg">
+                    <Heading level={2} id="finished-plans-heading">
                         終了済み
-                    </h2>
+                    </Heading>
                     <ul className="flex flex-col gap-3">
                         {finishedPlans.map((plan) => (
                             <li key={plan.id}>
-                                <PlanCard plan={plan} daysLabel={null} />
+                                <PlanCard plan={plan} daysLabel={null} today={today} />
                             </li>
                         ))}
                     </ul>
@@ -86,17 +87,19 @@ export const PlanList = ({ plans, today }: PlanListProps) => {
  * 注: markuplint の heading-levels はファイル内の出現順で判定するため、
  * h2 を含む PlanList より後に定義する。
  */
-const PlanCard = ({ plan, daysLabel }: PlanCardProps) => {
+const PlanCard = ({ plan, daysLabel, today }: PlanCardProps) => {
     const tidePhase = getTidePhase(plan.plannedOn);
+    // 当日以前の予定のみ「ログに記録する」を表示（未来日は非表示 / 024 FR-001,002）
+    const canMove = canMovePlanToLog(plan.plannedOn, today);
 
     return (
-        <article className="rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/50">
+        <article className="flex flex-col gap-3 rounded-lg border border-border bg-background p-4 transition-colors hover:bg-muted/50">
             <Link href={`/plans/${plan.id}`} className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                         <span className="text-muted-foreground text-sm">
                             <span className="sr-only">予定日: </span>
-                            {formatDate(plan.plannedOn)}
+                            {formatJstDate(plan.plannedOn)}
                         </span>
                         {/* バッジは text-muted-foreground だと bg-muted 上でコントラスト AA 未達のため text-foreground を使う */}
                         {tidePhase !== null && (
@@ -112,11 +115,24 @@ const PlanCard = ({ plan, daysLabel }: PlanCardProps) => {
                             終了済み
                         </span>
                     ) : (
-                        <span className="font-medium text-primary text-sm">{daysLabel}</span>
+                        <span className="font-medium text-[#1a73cc] text-sm">{daysLabel}</span>
                     )}
                 </div>
-                <h3 className="font-semibold text-base text-foreground">{plan.location}</h3>
+                <Heading level={3} className="text-foreground">
+                    {plan.location}
+                </Heading>
             </Link>
+            {canMove && (
+                <div className="flex">
+                    <Link
+                        href={`/dives/new?fromPlanId=${plan.id}`}
+                        className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                        aria-label={`${plan.location}の予定をログに記録する`}
+                    >
+                        ログに記録する
+                    </Link>
+                </div>
+            )}
         </article>
     );
 };

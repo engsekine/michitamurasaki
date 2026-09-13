@@ -21,6 +21,7 @@
 
 - 同一 PR への連続 push は古い実行が自動キャンセルされる（main は完走）
 - **シークレットは未使用**。E2E も Supabase CLI のローカルスタック（公開デフォルトキー）で完結するため、フォークからの PR でも全チェックが動く
+- **Supabase CLI はバージョン固定（2.107.0）**。`version: latest` は GitHub API レート制限で失敗するため。更新時は ci.yml の `version` を手動で上げる
 
 ## branch protection の設定（手動・初回のみ）
 
@@ -28,7 +29,7 @@
 
 1. リポジトリの **Settings → Branches →（main の）Branch protection rule** を作成 / 編集
 2. **Require status checks to pass before merging** を有効化
-3. required checks に以下の 5 つを追加: `lint` / `markup-lint` / `type-check` / `unit-test` / `db-lint`
+3. required checks に以下の 8 つを追加: `lint` / `markup-lint` / `type-check` / `unit-test` / `db-lint` / `lint-admin` / `type-check-admin` / `unit-test-admin`
 4. （推奨）**Require branches to be up to date before merging** も有効化
 
 > `full-test.yml` のジョブ（`e2e` / `storybook-test`）は main push 後に走るため required checks には**含めない**。

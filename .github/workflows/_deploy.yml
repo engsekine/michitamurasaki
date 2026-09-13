@@ -1,0 +1,132 @@
+# デプロイの実体（reusable workflow / 028-deploy-pipeline）
+# deploy-stg.yml / deploy-prod.yml から environment 名だけを変えて呼ばれる。
+# ジョブ順序: migrate（DB）→ 成功後に service-front / admin-front を並列デプロイ（FR-004）。
+# Vercel は Git 連携ではなく CLI（pull → build → deploy --prebuilt）で順序を制御する（research 2）。
+name: Deploy (reusable)
+
+on:
+    workflow_call:
+        inputs:
+            environment:
+                description: 'デプロイ先の GitHub Environment 名（staging | production）'
+                required: true
+                type: string
+
+# GITHUB_TOKEN は最小権限に固定（ci.yml と同方針）
+permissions:
+    contents: read
+
+jobs:
+    # ------------------------------------------------------------
+    # 1. DB マイグレーション（Supabase）
+    #    db push はリモートのマイグレーション履歴と突合し未適用分のみ適用する
+    #    （冪等 / FR-005。再実行・重複実行しても二重適用されない）
+    # ------------------------------------------------------------
+    migrate:
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment: ${{ inputs.environment }}
+        env:
+            SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+            SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        steps:
+            - uses: actions/checkout@v4
+            - uses: supabase/setup-cli@v1
+              with:
+                  # version: latest は実行のたびに GitHub API で最新リリースを解決するため、
+                  # 未認証のレート制限に達して失敗する。バージョンを固定して API 解決を回避する（ci.yml と同方針）
+                  version: 2.107.0
+            - name: Link to Supabase project
+              env:
+                  SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+              run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+            - name: Apply migrations
+              run: supabase db push
+
+    # ------------------------------------------------------------
+    # 2. service-front → Vercel
+    #    migrate 成功後のみ実行（FR-004: 新アプリ + 旧スキーマの不整合防止）。
+    #    環境変数は vercel pull が Vercel 側の Preview / Production スコープから
+    #    取得する（FR-015: stg / prod の分離は Vercel のスコープ機構で担保）
+    # ------------------------------------------------------------
+    deploy-service-front:
+        needs: migrate
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        environment: ${{ inputs.environment }}
+        env:
+            VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+            VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+            VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_SERVICE_FRONT }}
+            # production は --prod / staging は Preview デプロイ + 固定エイリアス
+            VERCEL_ENV: ${{ inputs.environment == 'production' && 'production' || 'preview' }}
+            PROD_FLAG: ${{ inputs.environment == 'production' && '--prod' || '' }}
+            # run 内で参照する入力値は env 経由にする（式展開によるシェル注入防止）
+            DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+            - name: Pull Vercel environment
+              run: npx --yes vercel pull --yes --environment="$VERCEL_ENV" --token="$VERCEL_TOKEN"
+            - name: Build
+              run: npx --yes vercel build ${PROD_FLAG:+"$PROD_FLAG"} --token="$VERCEL_TOKEN"
+            - name: Deploy (prebuilt)
+              id: deploy
+              run: |
+                  # vercel deploy は stdout にデプロイ URL のみを出す仕様だが、
+                  # 将来の CLI 出力変更に備えて最終行だけを取る（防御的）
+                  url=$(npx --yes vercel deploy --prebuilt ${PROD_FLAG:+"$PROD_FLAG"} --token="$VERCEL_TOKEN" | tail -n1)
+                  echo "url=$url" >> "$GITHUB_OUTPUT"
+                  echo "### service-front (${DEPLOY_ENVIRONMENT}): $url" >> "$GITHUB_STEP_SUMMARY"
+            - name: Set staging alias
+              if: ${{ inputs.environment == 'staging' }}
+              env:
+                  STG_ALIAS: ${{ secrets.STG_ALIAS_SERVICE_FRONT }}
+                  # step 出力は run に直接展開せず env 経由で参照する（式展開によるシェル注入防止）
+                  DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+              run: npx --yes vercel alias set "$DEPLOY_URL" "$STG_ALIAS" --token="$VERCEL_TOKEN"
+
+    # ------------------------------------------------------------
+    # 3. admin-front → Vercel（service-front と同型・並列実行）
+    # ------------------------------------------------------------
+    deploy-admin-front:
+        needs: migrate
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        environment: ${{ inputs.environment }}
+        env:
+            VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+            VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+            VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_ADMIN_FRONT }}
+            VERCEL_ENV: ${{ inputs.environment == 'production' && 'production' || 'preview' }}
+            PROD_FLAG: ${{ inputs.environment == 'production' && '--prod' || '' }}
+            # run 内で参照する入力値は env 経由にする（式展開によるシェル注入防止）
+            DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+            - name: Pull Vercel environment
+              run: npx --yes vercel pull --yes --environment="$VERCEL_ENV" --token="$VERCEL_TOKEN"
+            - name: Build
+              run: npx --yes vercel build ${PROD_FLAG:+"$PROD_FLAG"} --token="$VERCEL_TOKEN"
+            - name: Deploy (prebuilt)
+              id: deploy
+              run: |
+                  # vercel deploy は stdout にデプロイ URL のみを出す仕様だが、
+                  # 将来の CLI 出力変更に備えて最終行だけを取る（防御的）
+                  url=$(npx --yes vercel deploy --prebuilt ${PROD_FLAG:+"$PROD_FLAG"} --token="$VERCEL_TOKEN" | tail -n1)
+                  echo "url=$url" >> "$GITHUB_OUTPUT"
+                  echo "### admin-front (${DEPLOY_ENVIRONMENT}): $url" >> "$GITHUB_STEP_SUMMARY"
+            - name: Set staging alias
+              if: ${{ inputs.environment == 'staging' }}
+              env:
+                  STG_ALIAS: ${{ secrets.STG_ALIAS_ADMIN_FRONT }}
+                  # step 出力は run に直接展開せず env 経由で参照する（式展開によるシェル注入防止）
+                  DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+              run: npx --yes vercel alias set "$DEPLOY_URL" "$STG_ALIAS" --token="$VERCEL_TOKEN"

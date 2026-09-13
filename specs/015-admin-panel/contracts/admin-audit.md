@@ -13,7 +13,7 @@ export interface AuditEntry {
 }
 export const recordAudit = async (entry: AuditEntry): Promise<void> => {
   // requireAdmin() で得た actor の id を actor_id に設定して insert
-  // 失敗時は mutation 全体を失敗扱いにする（監査なしの変更を残さない）
+  // 失敗時は Action が失敗を返す（データ変更自体は既にコミット済みで残り得る。詳細は受け入れ基準を参照）
 };
 ```
 
@@ -33,5 +33,5 @@ export const recordAudit = async (entry: AuditEntry): Promise<void> => {
 
 - 任意の create / update / soft_delete / hard_delete / restore 後、対応する 1 行が `admin_audit_logs` に記録される。
 - 操作ログ一覧で「実行者・対象・操作種別・日時」が時系列で確認できる。
-- 監査 insert が失敗した場合、元の mutation も失敗（または同一トランザクションでロールバック）し、記録のない変更が残らない。
+- 監査 insert の失敗時は Action が失敗を返すが、データ変更自体は既にコミット済みで残り得る（2 リクエスト構成の制約）。auth スキーマ操作等ロールバック不能な操作（023 の removeMfaFactor）は監査失敗を捕捉してログ出力し操作は成功として返す。完全な原子性が必要になった場合は RPC 化を検討。
 - 監査ログの更新・削除が RLS で拒否される（単体テスト）。

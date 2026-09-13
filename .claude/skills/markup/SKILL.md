@@ -2,6 +2,7 @@
 name: markup
 description: スクリーンショット画像をもとに、対象ファイルをマークアップ（HTML/CSS実装）します。
 user-invocable: true
+argument-hint: "<画像パス> <対象ファイル>"
 ---
 
 スクリーンショット画像をもとに、対象ファイルをマークアップ（HTML/CSS実装）します。
@@ -52,14 +53,18 @@ ls <画像パス>
 - コンポーネント境界
 - スペーシング・マージン
 
+**補助情報があれば併用する:**
+- `design/` フォルダに対象画面に関連するデザインファイル・トークン定義があれば参照する
+- Figma の URL が渡された場合は figma MCP ツールで該当フレームの情報（色・スペーシング・フォント）を取得し、画像からの目測より優先する
+
 ### 5. マークアップ実装
 
 対象ファイルの拡張子に応じて実装する:
 
 | 拡張子 | 実装内容 |
 |-------|---------|
-| `.tsx` / `.jsx` | React コンポーネント + Tailwind CSS（`.claude/rules/css.md` 準拠） |
-| `.html` | セマンティックHTML + 別途CSSファイル（インラインスタイルは使わない） |
+| `.tsx` / `.jsx` | React コンポーネント + Tailwind CSS（`.claude/rules/css.md`・`.claude/rules/accessibility.md` 準拠） |
+| `.html` | セマンティックHTML + 別途CSSファイル（インラインスタイルは使わない。`.claude/rules/html.md`・`.claude/rules/accessibility.md` 準拠） |
 | `.vue` | Vue SFC形式 |
 | `.css` / `.scss` | スタイルのみ |
 
@@ -79,3 +84,5 @@ ls <画像パス>
 手動調整が必要な箇所:
 - <フォントファミリー・アセット等>
 ```
+
+**次ステップの案内**: 新規コンポーネント（`service-front` / `admin-front` の `components` 配下）を作成した場合は、CLAUDE.md「テスト生成ルール」に従い `/generate-with-tests <作成ファイルの絶対パス>` の実行を案内する。

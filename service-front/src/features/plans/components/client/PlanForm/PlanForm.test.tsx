@@ -33,6 +33,46 @@ describe('PlanForm', () => {
         expect(screen.getByLabelText(/メモ/)).toBeInTheDocument();
     });
 
+    it('shopOptions があるとショップ選択欄を表示し、選択値が送信に含まれる（033）', async () => {
+        createPlan.mockResolvedValueOnce({ success: true, id: 'new-plan-id' });
+        const user = userEvent.setup();
+        render(<PlanForm shopOptions={[{ id: 'shop-1', name: 'マリンステージ' }]} />);
+
+        await user.type(screen.getByLabelText(/ポイント名/), '伊豆 / 富戸');
+        await user.selectOptions(screen.getByLabelText(/ショップ/), 'shop-1');
+        await user.click(screen.getByRole('button', { name: '作成する' }));
+
+        expect(createPlan).toHaveBeenCalledWith(expect.objectContaining({ diveShopId: 'shop-1' }));
+    });
+
+    it('shopOptions が空だとショップ登録への導線を表示し、選択欄は出さない（033）', () => {
+        render(<PlanForm />);
+        expect(screen.queryByLabelText(/ショップ/)).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'ショップを登録' })).toHaveAttribute('href', '/shops/new');
+    });
+
+    it('未選択のまま送信すると diveShopId は null で送信される（033）', async () => {
+        createPlan.mockResolvedValueOnce({ success: true, id: 'new-plan-id' });
+        const user = userEvent.setup();
+        render(<PlanForm shopOptions={[{ id: 'shop-1', name: 'マリンステージ' }]} />);
+
+        await user.type(screen.getByLabelText(/ポイント名/), '伊豆 / 富戸');
+        await user.click(screen.getByRole('button', { name: '作成する' }));
+
+        expect(createPlan).toHaveBeenCalledWith(expect.objectContaining({ diveShopId: null }));
+    });
+
+    it('未選択のまま送信すると diveShopId は null で送信される（033）', async () => {
+        createPlan.mockResolvedValueOnce({ success: true, id: 'new-plan-id' });
+        const user = userEvent.setup();
+        render(<PlanForm shopOptions={[{ id: 'shop-1', name: 'マリンステージ' }]} />);
+
+        await user.type(screen.getByLabelText(/ポイント名/), '伊豆 / 富戸');
+        await user.click(screen.getByRole('button', { name: '作成する' }));
+
+        expect(createPlan).toHaveBeenCalledWith(expect.objectContaining({ diveShopId: null }));
+    });
+
     it('必須項目が未入力のまま送信するとエラーを表示し、アクションを呼ばない', async () => {
         const user = userEvent.setup();
         render(<PlanForm />);

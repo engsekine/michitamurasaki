@@ -1,0 +1,1 @@
+export { ResendConfirmationButton } from './ResendConfirmationButton';

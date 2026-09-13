@@ -155,9 +155,9 @@ description: "Task list for 運営管理画面（admin-front）"
 - [X] T054 [P] [US3] DiveEditForm（client）を作成（`admin-front/src/features/dives-admin/components/client/DiveEditForm/`）
 - [X] T055 [US3] dive-sites 新規/編集ページを作成（`admin-front/src/app/(admin)/dive-sites/new/page.tsx`・`[id]/edit/page.tsx`）
 - [X] T056 [US3] dives 編集ページを作成（`admin-front/src/app/(admin)/dives/[id]/edit/page.tsx`）
-- [X] T057 [US3] 汎用テーブルエディタの編集 Server Action + フォーム（メタ駆動）を実装（`admin-front/src/features/table-editor/server/actions.ts` + `components/client/TableEditorForm/`、許可リスト・型/NOT NULL/CHECK 反映。**users / user_details の編集はこの汎用エディタ経由**（個人情報カラムは許可リストで露出制御）、依存: T037・T048）
-- [X] T058 [US3] 削除/復元の ConfirmDialog を各一覧・詳細に配線（一覧の行操作・詳細の削除ボタンから T019 を必須通過）
-- [X] T059 [US3] 操作結果トースト（保存/作成/削除/エラー）を配線（FR-020、T019 の Toast）
+- [ ] T057 [US3] 汎用テーブルエディタの編集 Server Action + フォーム（メタ駆動）を実装（`admin-front/src/features/table-editor/server/actions.ts` + `components/client/TableEditorForm/`、許可リスト・型/NOT NULL/CHECK 反映。**users / user_details の編集はこの汎用エディタ経由**（個人情報カラムは許可リストで露出制御）、依存: T037・T048）（2026-07-02 監査で実装未達と判明し差し戻し）
+- [ ] T058 [US3] 削除/復元の ConfirmDialog を各一覧・詳細に配線（一覧の行操作・詳細の削除ボタンから T019 を必須通過）（2026-07-02 監査で実装未達と判明し差し戻し）
+- [ ] T059 [US3] 操作結果トースト（保存/作成/削除/エラー）を配線（FR-020、T019 の Toast）（2026-07-02 監査で実装未達と判明し差し戻し）
 - [X] T060 [US3] 【クロスアプリ影響】service-front の利用者向けクエリ/RLS に `deleted_at is null` を反映（`service-front/src/features/{dives,dive-sites}/lib/` のクエリビルダー or 利用者 select ポリシー）+ 回帰テスト（ソフトデリート済みが利用者側に出ない）を追加
 - [X] T061 [US3] FR-015 保護を実装（最後の superadmin / 自分自身の無効化をアプリ層でブロック。`admin-front/src/features/admin-auth/server/actions.ts` 付近）。`admin_users` への操作経路（汎用エディタ or 将来の管理者管理 UI）すべてに適用する。**MVP では管理者の追加/無効化は seed（T013）運用とし、専用の管理者管理 UI 画面は後続スコープ**（必要時に別タスクで追加）
 - [ ] T062 [US3] 新規フォームコンポーネントのテスト類を生成（`/generate-with-tests` で T053・T054・TableEditorForm）
@@ -178,7 +178,7 @@ description: "Task list for 運営管理画面（admin-front）"
 
 ### Implementation for User Story 4
 
-- [X] T064 [P] [US4] ダッシュボード KPI 集計 query を実装（`admin-front/src/features/dashboard/server/queries.ts`：ユーザー数・ダイブログ総数・直近増加傾向、count ベース）
+- [ ] T064 [P] [US4] ダッシュボード KPI 集計 query を実装（`admin-front/src/features/dashboard/server/queries.ts`：ユーザー数・ダイブログ総数・直近増加傾向、count ベース）（2026-07-02 監査で実装未達と判明し差し戻し。ユーザー数・ダイブログ総数・サイト数の count は実装済みだが増加傾向が未実装）
 - [X] T065 [P] [US4] KpiCard（client、リンク付き）を作成（`admin-front/src/features/dashboard/components/client/KpiCard/`）
 - [X] T066 [US4] ダッシュボードページを作成（`admin-front/src/app/(admin)/page.tsx`、`generatePageMetadata` を export、依存: T064・T065）
 - [X] T067 [US4] dashboard 公開 API バレル + テスト類生成（`admin-front/src/features/dashboard/index.ts` + `/generate-with-tests` で T065）

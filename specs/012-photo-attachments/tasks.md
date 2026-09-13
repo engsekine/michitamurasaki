@@ -130,7 +130,7 @@
 
 **Purpose**: 横断的な仕上げ・エッジケース・回帰防止
 
-- [ ] T035 ログ削除時の Storage 孤児削除を結線する: `service-front/src/features/dives/server/actions.ts` の `deleteDive` を拡張し、`{user_id}/{dive_id}/` プレフィックスを一括削除する（FR-014 / data-model.md エンティティ関係。回帰テストを `actions` のテストに追加）
+- [X] T035（2026-07-02 完了）ログ削除時の Storage 孤児削除を結線する: `service-front/src/features/dives/server/actions.ts` の `deleteDive` を拡張し、`{user_id}/{dive_id}/` プレフィックスを一括削除する（FR-014 / data-model.md エンティティ関係。回帰テストを `actions` のテストに追加）
 - [ ] T036 [P] アップロード中断・部分失敗のハンドリングを検証・補強する: `DivePhotoUploader`（失敗分のみ未保存・既存写真とログ本体は無事 — FR-015。該当テストを T019 に追加）
 - [ ] T037 [P] a11y テスト（Playwright + axe-core）を追加する: `service-front/tests/a11y/dives-photos.spec.ts`（詳細ページの写真セクション・アップローダのキーボード操作 — accessibility.md / Constitution V）
 - [ ] T038 [P] `/sync-spec specs/012-photo-attachments` 相当の整合確認 — 実装後に data-model.md / contracts と schema・migration・component のズレがないか確認し、ズレがあれば仕様書を実装に合わせて更新する

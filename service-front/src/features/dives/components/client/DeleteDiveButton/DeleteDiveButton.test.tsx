@@ -51,7 +51,7 @@ describe('DeleteDiveButton', () => {
         expect(deleteDive).toHaveBeenCalledWith('d1');
     });
 
-    it('deleteDive が失敗するとエラーメッセージを表示する', async () => {
+    it('deleteDive が失敗するとダイアログを閉じてエラーメッセージを表示する', async () => {
         deleteDive.mockResolvedValueOnce({ success: false, error: '削除に失敗しました' });
         const user = userEvent.setup();
         render(<DeleteDiveButton diveId="d1" />);
@@ -60,5 +60,6 @@ describe('DeleteDiveButton', () => {
         await user.click(screen.getByRole('button', { name: '削除する' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('削除に失敗しました');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 });

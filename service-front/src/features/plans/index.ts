@@ -1,9 +1,14 @@
 export { DeletePlanButton } from './components/client/DeletePlanButton';
+export { ForgottenItemChecklist } from './components/client/ForgottenItemChecklist';
+export { PackingChecklist } from './components/client/PackingChecklist';
 export { PackingList } from './components/client/PackingList';
 export { PlanForm } from './components/client/PlanForm';
 export { PlanList } from './components/client/PlanList';
-export { NextPlanCard, NextPlanCardView } from './components/server/NextPlanCard';
+export { NextPlanCardView } from './components/server/NextPlanCard';
+export { NextPlanList } from './components/server/NextPlanList';
+export { canMovePlanToLog } from './lib/canMovePlanToLog';
 export { daysUntil } from './lib/days-until';
+export { splitTodayPlan } from './lib/splitTodayPlan';
 export type { PlanFormValues } from './schemas/plan.schema';
-export { getNextPlanWithProgress, getPlan, listPlans } from './server/queries';
+export { getPlan, listNextPlansWithProgress, listPlans } from './server/queries';
 export type { NextPlanSummary, PackingItem, Plan, PlanWithPacking } from './types';

@@ -1,0 +1,26 @@
+# stg デプロイ（028-deploy-pipeline / US1）
+# 手動実行で stg 環境（Supabase stg プロジェクト + Vercel Preview 固定 URL）へ反映する。
+# 自動トリガー（develop push）は手動運用への移行で廃止（2026-07-17）。
+# Actions タブの「Run workflow」で develop を選んで実行する（他ブランチはガードで弾く）。
+name: Deploy (staging)
+
+on:
+    workflow_dispatch:
+
+# 同一環境への実行は直列化し、実行中デプロイは完走させる（追い越し防止 / FR-009）
+concurrency:
+    group: deploy-staging
+    cancel-in-progress: false
+
+permissions:
+    contents: read
+
+jobs:
+    deploy:
+        # 手動実行はブランチを自由に選べるため、stg のデプロイ元を develop に固定する
+        # （フィーチャーブランチからの誤デプロイ防止）
+        if: github.ref == 'refs/heads/develop'
+        uses: ./.github/workflows/_deploy.yml
+        with:
+            environment: staging
+        secrets: inherit

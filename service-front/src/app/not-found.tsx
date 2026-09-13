@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { buttonVariants } from '@/shared/components/ui/Button';
 import { generatePageMetadata } from '@/shared/config/metadata';
 
 export const metadata = generatePageMetadata(
@@ -16,10 +17,7 @@ export default function NotFound() {
         <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-4">
             <h1 className="font-bold text-6xl text-foreground">404</h1>
             <p className="text-lg text-muted-foreground">お探しのページが見つかりませんでした</p>
-            <Link
-                href="/"
-                className="rounded-lg bg-primary px-6 py-2.5 font-medium text-primary-foreground text-sm hover:bg-primary/80"
-            >
+            <Link href="/" className={buttonVariants({ variant: 'default', size: 'lg' })}>
                 ホームに戻る
             </Link>
         </main>

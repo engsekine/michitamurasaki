@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { DIVE_PAGE_SIZE } from '@/features/dives/constants';
 import type { DiveCursor, DiveListFilter, DiveListItem, DiveListPage, DiveSiteRef } from '@/features/dives/types';
+import { isSafeKeysetCursor } from '@/shared/lib/keyset-cursor';
 import { toNumber } from '@/shared/lib/number';
 
 /** 一覧表示で取得する列。`DiveListItem` と 1:1 で対応させる（表示名解決のため dive_site を結合） */
@@ -52,6 +53,7 @@ interface DiveFilterQuery<Q> {
     lte: (column: string, value: string | number) => Q;
     not: (column: string, operator: string, value: null) => Q;
     or: (filters: string) => Q;
+    in: (column: string, values: readonly string[]) => Q;
 }
 
 /**
@@ -93,6 +95,34 @@ export const applyDiveListFilter = async <Q extends DiveFilterQuery<Q>>(
         if (siteIds.length > 0) orParts.push(`dive_site_id.in.(${siteIds.join(',')})`);
         next = next.or(orParts.join(','));
     }
+    // バディ絞り込み（spec 021 FR-022/023）: dive_log_buddies から該当 dive_id を引き、in で限定する。
+    // 本人除去済み（removed_by_buddy=true）はヒットさせない。空集合なら 0 件に絞る。
+    if (filter.buddyUserId) {
+        const { data, error } = await supabase
+            .from('dive_log_buddies')
+            .select('dive_id')
+            .eq('buddy_user_id', filter.buddyUserId)
+            .eq('removed_by_buddy', false);
+        // エラーを握りつぶすと 0 件（=該当なし）と区別できず誤表示になるため throw する
+        if (error) throw new Error(`バディ絞り込みの取得に失敗しました: ${error.message}`);
+        next = next.in(
+            'id',
+            (data ?? []).map((row) => row.dive_id),
+        );
+    }
+    if (filter.buddyName) {
+        const safeBuddy = filter.buddyName.replace(/[,()*"%_]/g, '');
+        const { data, error } = await supabase
+            .from('dive_log_buddies')
+            .select('dive_id')
+            .eq('removed_by_buddy', false)
+            .ilike('buddy_name', `%${safeBuddy}%`);
+        if (error) throw new Error(`バディ名絞り込みの取得に失敗しました: ${error.message}`);
+        next = next.in(
+            'id',
+            (data ?? []).map((row) => row.dive_id),
+        );
+    }
     return { query: next };
 };
 
@@ -113,9 +143,17 @@ export const fetchDiveListPage = async (
 ): Promise<DiveListPage> => {
     const { filter, cursor, limit = DIVE_PAGE_SIZE } = options;
 
+    // 一覧は本人のログのみ。公開読み取り RLS（authenticated can read public dives）により
+    // 他人の公開ログが混ざらないよう、user_id を明示的に絞る（RLS 任せにしない二重防御）。
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { items: [], nextCursor: null };
+
     let query = supabase
         .from('dives')
         .select(DIVE_LIST_COLUMNS)
+        .eq('user_id', user.id)
         .order('dive_date', { ascending: false })
         .order('id', { ascending: false })
         .limit(limit + 1);
@@ -123,6 +161,8 @@ export const fetchDiveListPage = async (
     query = (await applyDiveListFilter(supabase, query, filter)).query;
 
     if (cursor) {
+        // クライアント由来のカーソルはフィルタ文字列へ補間するため、形式が不正なら空ページで打ち切る
+        if (!isSafeKeysetCursor({ ...cursor })) return { items: [], nextCursor: null };
         /** (dive_date, id) の降順タプル比較を or で表現 */
         query = query.or(`dive_date.lt.${cursor.diveDate},and(dive_date.eq.${cursor.diveDate},id.lt.${cursor.id})`);
     }

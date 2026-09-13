@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { getRegulator, RegulatorForm } from '@/features/regulators';
 import { Breadcrumbs } from '@/shared/components/layout/Breadcrumbs';
+import { Heading } from '@/shared/components/typography/Heading';
 import { generatePageMetadata } from '@/shared/config/metadata';
 
 interface EditEquipmentPageProps {
@@ -35,7 +36,7 @@ export default async function EditEquipmentPage({ params }: EditEquipmentPagePro
                 ]}
             />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
-                <h1 className="font-semibold text-2xl">機材の編集</h1>
+                <Heading level={1}>機材の編集</Heading>
                 <RegulatorForm
                     regulatorId={id}
                     defaultValues={{

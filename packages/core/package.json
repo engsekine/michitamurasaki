@@ -1,0 +1,24 @@
+{
+    "name": "@repo/core",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts",
+        "./schemas/dive": "./src/schemas/dive.schema.ts",
+        "./constants/dive-options": "./src/constants/dive-options.ts",
+        "./lib/date": "./src/lib/date.ts",
+        "./lib/transforms": "./src/lib/transforms.ts"
+    },
+    "scripts": {
+        "test": "vitest run",
+        "type-check": "tsc --noEmit"
+    },
+    "dependencies": {
+        "yup": "^1.6.1"
+    },
+    "devDependencies": {
+        "typescript": "5.7.2",
+        "vitest": "^3.2.4"
+    }
+}

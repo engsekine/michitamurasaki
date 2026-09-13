@@ -67,7 +67,7 @@ describe('RecordOverhaulButton', () => {
         expect(routerRefresh).toHaveBeenCalled();
     });
 
-    it('onRecord が失敗するとエラーメッセージを表示し再取得しない', async () => {
+    it('onRecord が失敗するとダイアログを閉じてエラーメッセージを表示し再取得しない', async () => {
         onRecord.mockResolvedValueOnce({ success: false, error: 'メンテ完了の記録に失敗しました' });
         const user = userEvent.setup();
         render(<RecordOverhaulButton regulatorId="reg-1" onRecord={onRecord} />);
@@ -76,7 +76,7 @@ describe('RecordOverhaulButton', () => {
         await user.click(screen.getByRole('button', { name: '記録する' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('メンテ完了の記録に失敗しました');
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(routerRefresh).not.toHaveBeenCalled();
     });
 });

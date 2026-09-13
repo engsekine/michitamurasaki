@@ -5,11 +5,30 @@ import type { RecentDiveItem } from '@/features/dashboard/types';
 import { RecentDives } from './RecentDives';
 
 const sampleDives: RecentDiveItem[] = [
-    { id: 'dive-1', diveDate: '2026-05-20', location: '石垣島・米原', maxDepthM: 18.5, bottomTimeMin: 42 },
-    { id: 'dive-2', diveDate: '2026-05-19', location: '石垣島・崎枝', maxDepthM: 24, bottomTimeMin: 38 },
-    { id: 'dive-3', diveDate: '2026-05-18', location: '石垣島・マンタスクランブル', maxDepthM: 16, bottomTimeMin: 45 },
-    { id: 'dive-4', diveDate: '2026-04-29', location: '宮古島・下地島', maxDepthM: 28.5, bottomTimeMin: 35 },
-    { id: 'dive-5', diveDate: '2026-04-28', location: '宮古島・八重干瀬', maxDepthM: 21, bottomTimeMin: 40 },
+    {
+        id: 'dive-1',
+        diveDate: '2026-05-20',
+        location: '石垣島・米原',
+        maxDepthM: 18.5,
+        bottomTimeMin: 42,
+        coverThumbUrl: 'https://picsum.photos/seed/dive1/400/225',
+    },
+    {
+        id: 'dive-2',
+        diveDate: '2026-05-19',
+        location: '石垣島・崎枝',
+        maxDepthM: 24,
+        bottomTimeMin: 38,
+        coverThumbUrl: null,
+    },
+    {
+        id: 'dive-3',
+        diveDate: '2026-05-18',
+        location: '石垣島・マンタスクランブル',
+        maxDepthM: 16,
+        bottomTimeMin: 45,
+        coverThumbUrl: 'https://picsum.photos/seed/dive3/400/225',
+    },
 ];
 
 const meta = {
@@ -22,7 +41,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** 複数件（最大 5 件 + 一覧へのリンク） */
+/** 複数件（最大 3 件・3 カラム。写真あり / なし混在） */
 export const Default: Story = {
     args: { dives: sampleDives },
 };
@@ -32,9 +51,25 @@ export const Empty: Story = {
     args: { dives: [] },
 };
 
+/** 全件写真なし（ロゴのダミー画像にフォールバック） */
+export const NoPhotos: Story = {
+    args: {
+        dives: sampleDives.map((dive) => ({ ...dive, coverThumbUrl: null })),
+    },
+};
+
 /** 新月直後の日付（2000-01-07）で「大潮」ラベルが付くケース */
 export const SpringTide: Story = {
     args: {
-        dives: [{ id: 'dive-1', diveDate: '2000-01-07', location: '石垣島・米原', maxDepthM: 18.5, bottomTimeMin: 42 }],
+        dives: [
+            {
+                id: 'dive-1',
+                diveDate: '2000-01-07',
+                location: '石垣島・米原',
+                maxDepthM: 18.5,
+                bottomTimeMin: 42,
+                coverThumbUrl: null,
+            },
+        ],
     },
 };

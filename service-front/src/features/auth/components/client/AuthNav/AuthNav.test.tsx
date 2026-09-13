@@ -81,6 +81,19 @@ describe('AuthNav', () => {
         expect(signupLink).toHaveAttribute('href', '/signup');
     });
 
+    it('user_metadata に handle があるとマイプロフィールはユーザー ID の URL になる（034 / FR-004）', async () => {
+        const user = buildUser({ email: 'user@example.com', user_metadata: { handle: 'taro' } });
+        mockStoreState.user = user;
+
+        const userEventInstance = userEvent.setup();
+        render(<AuthNav initialUser={user} />);
+
+        await userEventInstance.click(screen.getByRole('button', { name: 'アカウントメニューを開く' }));
+
+        const myProfileLink = await screen.findByRole('link', { name: /マイプロフィール/ });
+        expect(myProfileLink).toHaveAttribute('href', '/users/taro');
+    });
+
     it('ログイン済み状態でアイコンボタンを押すとシート内に会員情報・保有資格リンクとログアウトボタンを表示する', async () => {
         const user = buildUser({ email: 'user@example.com' });
         mockStoreState.user = user;
@@ -90,11 +103,20 @@ describe('AuthNav', () => {
 
         await userEventInstance.click(screen.getByRole('button', { name: 'アカウントメニューを開く' }));
 
-        const profileLink = await screen.findByRole('link', { name: /会員情報/ });
+        const myProfileLink = await screen.findByRole('link', { name: /マイプロフィール/ });
+        expect(myProfileLink).toHaveAttribute('href', '/users/user-1');
+
+        const userSearchLink = screen.getByRole('link', { name: /ユーザーを探す/ });
+        expect(userSearchLink).toHaveAttribute('href', '/users/search');
+
+        const profileLink = screen.getByRole('link', { name: /会員情報/ });
         expect(profileLink).toHaveAttribute('href', '/settings/profile');
 
         const certificationsLink = screen.getByRole('link', { name: /保有資格/ });
         expect(certificationsLink).toHaveAttribute('href', '/settings/certifications');
+
+        const logCreditsLink = screen.getByRole('link', { name: /ログ枠の購入/ });
+        expect(logCreditsLink).toHaveAttribute('href', '/settings/log-credits');
 
         expect(screen.getByRole('button', { name: /ログアウト/ })).toBeInTheDocument();
         expect(screen.getByText('user@example.com')).toBeInTheDocument();

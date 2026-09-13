@@ -12,6 +12,8 @@ const connectSrc = ["'self'", supabaseOrigin, supabaseWsOrigin].filter(Boolean).
 
 const nextConfig = {
     distDir: process.env['NEXT_DIST_DIR'] ?? '.next',
+    // フレームワークのバージョン露出（X-Powered-By: Next.js）を抑止する
+    poweredByHeader: false,
     reactStrictMode: true,
     // 管理画面は動的ルート（一覧→詳細・検索クエリ）が多いため typedRoutes は無効化する
     typedRoutes: false,
@@ -26,11 +28,16 @@ const nextConfig = {
                     { key: 'X-Frame-Options', value: 'DENY' },
                     { key: 'X-Content-Type-Options', value: 'nosniff' },
                     { key: 'Referrer-Policy', value: 'no-referrer' },
+                    // 認証 Cookie は httpOnly でないため、HTTP への 1 リクエストで漏れないよう HTTPS を強制する
+                    { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+                    // 利用しないセンサー・デバイス API を明示的に無効化する
+                    { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
                     // 管理画面はインデックスさせない
                     { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
                     {
+                        // base-uri: <base> 注入による相対 URL の乗っ取り防止 / object-src: プラグイン埋め込み禁止
                         key: 'Content-Security-Policy',
-                        value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob: ${supabaseOrigin}; font-src 'self'; connect-src ${connectSrc}; frame-ancestors 'none'`,
+                        value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob: ${supabaseOrigin}; font-src 'self'; connect-src ${connectSrc}; frame-ancestors 'none'; base-uri 'self'; object-src 'none'`,
                     },
                 ],
             },

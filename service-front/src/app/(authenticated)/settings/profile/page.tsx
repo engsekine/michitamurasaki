@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { getProfile, ProfileEditForm } from '@/features/account';
 import { Breadcrumbs } from '@/shared/components/layout/Breadcrumbs';
+import { Heading } from '@/shared/components/typography/Heading';
 import { generatePageMetadata } from '@/shared/config/metadata';
 
 export const metadata = generatePageMetadata(
@@ -22,7 +23,7 @@ export default async function ProfileEditPage() {
         <div className="flex flex-1 flex-col">
             <Breadcrumbs breadcrumbs={[{ name: '会員情報の編集' }]} />
             <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-12">
-                <h1 className="font-semibold text-2xl">会員情報の編集</h1>
+                <Heading level={1}>会員情報の編集</Heading>
                 <ProfileEditForm
                     email={profile.email}
                     defaultValues={{
@@ -31,10 +32,14 @@ export default async function ProfileEditPage() {
                         lastNameRomaji: profile.lastNameRomaji,
                         firstNameRomaji: profile.firstNameRomaji,
                         nickname: profile.nickname,
+                        handle: profile.handle,
                         birthOn: profile.birthOn,
                         gender: profile.gender,
                         heightCm: profile.heightCm,
                         weightKg: profile.weightKg,
+                        diverType: profile.diverType,
+                        diverNumber: profile.diverNumber,
+                        emailOptIn: profile.emailOptIn,
                     }}
                 />
                 <section

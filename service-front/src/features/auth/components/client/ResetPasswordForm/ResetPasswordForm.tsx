@@ -1,14 +1,13 @@
 'use client';
 
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button } from '@repo/ui/components/button';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
-
 import { type ResetPasswordRequestFormValues, resetPasswordRequestSchema } from '@/features/auth/schemas/reset.schema';
 import { requestPasswordReset } from '@/features/auth/server/actions';
 import { FormField } from '@/shared/components/form';
+import { Button } from '@/shared/components/ui/Button';
 
 export const ResetPasswordForm = () => {
     const [isPending, startTransition] = useTransition();

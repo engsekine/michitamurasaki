@@ -17,6 +17,7 @@
 - 予定日（`YYYY/MM/DD`）+ 状態バッジ（「終了済み」/「今日」/「あとN日」）
 - ポイント名（h1）/ メモ（whitespace-pre-wrap）
 - 「編集」リンク（→ `/plans/[id]/edit`）+ 削除ボタン
+- 「ログに記録する」導線（024 で追加）。表示条件は `canMovePlanToLog`（予定日が当日以前）。詳細は [specs/024-plan-to-log](../../024-plan-to-log/spec.md) を参照
 
 ### 持ち物リスト（h2 セクション）
 

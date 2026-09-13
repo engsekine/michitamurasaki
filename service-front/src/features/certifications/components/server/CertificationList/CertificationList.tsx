@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-
 import { AGENCY_LABELS } from '@/features/certifications/constants';
 import { calcHeldPeriod, formatHeldPeriod } from '@/features/certifications/lib/heldPeriod';
 import type { Certification } from '@/features/certifications/types';
+import { buttonVariants } from '@/shared/components/ui/Button';
+import { formatJstDate } from '@/shared/lib/date';
 
 interface CertificationListProps {
     certifications: Certification[];
@@ -12,11 +13,6 @@ interface CertificationListProps {
     /** 各行の操作エリア（編集リンク・削除ボタン等）。ページ側で組み立てて渡す */
     renderActions?: (certification: Certification) => ReactNode;
 }
-
-const formatDate = (isoDate: string): string => {
-    const [y, m, d] = isoDate.split('-');
-    return `${y}/${m}/${d}`;
-};
 
 interface CertificationCardProps {
     certification: Certification;
@@ -46,7 +42,7 @@ const CertificationCard = ({ certification, today, actions }: CertificationCardP
             <dl className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground text-sm">
                 <div className="flex items-center gap-1">
                     <dt className="font-medium">取得日</dt>
-                    <dd>{formatDate(certification.acquiredOn)}</dd>
+                    <dd>{formatJstDate(certification.acquiredOn)}</dd>
                 </div>
                 <div className="flex items-center gap-1">
                     <dt className="font-medium">保有期間</dt>
@@ -63,7 +59,7 @@ const CertificationCard = ({ certification, today, actions }: CertificationCardP
                         <dt className="font-medium">取得ダイブ</dt>
                         <dd>
                             <Link href={`/dives/${certification.dive.id}`} className="text-primary underline">
-                                {formatDate(certification.dive.diveDate)} {certification.dive.location}
+                                {formatJstDate(certification.dive.diveDate)} {certification.dive.location}
                             </Link>
                         </dd>
                     </div>
@@ -90,10 +86,7 @@ export const CertificationList = ({ certifications, today, renderActions }: Cert
         return (
             <div className="flex flex-col items-center gap-3 rounded-lg border border-border border-dashed bg-background p-12 text-center">
                 <p className="text-muted-foreground">保有資格が登録されていません</p>
-                <Link
-                    href="/settings/certifications/new"
-                    className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm transition-opacity hover:opacity-90"
-                >
+                <Link href="/settings/certifications/new" className={buttonVariants({ variant: 'default' })}>
                     資格を登録する
                 </Link>
             </div>

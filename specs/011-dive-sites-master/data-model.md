@@ -11,7 +11,7 @@
 | `id` | `uuid` | NO | `gen_random_uuid()` | 主キー |
 | `name` | `text` | NO | — | ポイント名。**一意**（FR-001a） |
 | `area` | `text` | YES | — | エリア / 地域（例: 伊豆）。表示で名称と組み合わせる |
-| `country` | `text` | NO | `'JP'` | 国コード（初期は国内中心） |
+| `country` | `text` | NO | `'JP'` | 国コード（初期は国内中心）。`check (char_length(country) <= 2)` |
 | `description` | `text` | YES | — | 任意の説明 |
 | `created_at` | `timestamptz` | NO | `now()` | 作成日時 |
 | `updated_at` | `timestamptz` | NO | `now()` | 更新日時（トリガ自動更新） |

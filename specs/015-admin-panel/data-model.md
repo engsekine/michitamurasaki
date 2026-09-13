@@ -64,6 +64,10 @@
 
 回帰テスト（Vitest / Playwright）で「ソフトデリート済みレコードが利用者側に出ない」ことを検証する。
 
+### 削除済みレコードに対する所有者（利用者）の権限
+
+所有者は削除済み行を参照・編集・削除できない（20260702110100 / 20260702110000 で UPDATE/DELETE ポリシーに `deleted_at is null` を追加済み）。復元は管理者ポリシー経由のみ。
+
 ## RLS ポリシー（R2）
 
 ### 判定関数
@@ -152,6 +156,8 @@ create policy "admins insert audit logs"
 4. `20260620100300_add_soft_delete_columns.sql` — 管理対象テーブル（`dives` / `dive_sites` / `dive_photos`）へ `deleted_at` + 部分インデックス
 5. `20260620100400_add_admin_rls_policies.sql` — 各管理対象テーブルへ admin ポリシー追加
 6. `20260620100500_filter_soft_deleted_from_user_reads.sql` — service-front の利用者向け read ポリシーに `deleted_at is null` を反映（管理者ポリシーは復元のため除外しない）
+7. `20260620100600_prevent_last_superadmin_removal.sql` — 最後の superadmin の無効化・降格を防ぐ DB トリガ（FR-015 の DB 層防御）
+8. `20260702110500_add_admin_users_prevent_last_superadmin_delete.sql` — DELETE 経路の保護（最後の superadmin の物理削除を同トリガ群でブロック）
 
 > 1 マイグレーション 1 目的（sql.md）。ただし RLS 再帰回避のため、判定関数と `admin_users` ポリシーは #2 に同居させる（FK / 依存が強い関数・ポリシーは同一ファイルにまとめてよい）。
 

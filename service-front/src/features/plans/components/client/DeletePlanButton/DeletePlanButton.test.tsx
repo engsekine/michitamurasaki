@@ -71,7 +71,7 @@ describe('DeletePlanButton', () => {
         expect(routerRefresh).toHaveBeenCalled();
     });
 
-    it('deletePlan が失敗するとエラーメッセージを表示し遷移しない', async () => {
+    it('deletePlan が失敗するとダイアログを閉じてエラーメッセージを表示し遷移しない', async () => {
         deletePlan.mockResolvedValueOnce({ success: false, error: '削除に失敗しました' });
         const user = userEvent.setup();
         render(<DeletePlanButton planId="p1" />);
@@ -80,6 +80,7 @@ describe('DeletePlanButton', () => {
         await user.click(screen.getByRole('button', { name: '削除する' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('削除に失敗しました');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(routerPush).not.toHaveBeenCalled();
     });
 });

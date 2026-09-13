@@ -15,6 +15,11 @@ export interface ExportQueryOptions {
     ids?: string[] | null;
     /** ids 未指定時に適用する絞り込み（機能 013 と同一） */
     filter?: DiveListFilter;
+    /**
+     * 出力対象の所有者 ID。公開読み取り RLS で他人の公開ログを ids 経由で
+     * エクスポートできてしまうのを防ぐため、指定時は user_id で絞る。
+     */
+    ownerId?: string;
 }
 
 /**
@@ -27,7 +32,7 @@ export const fetchDivesForExport = async (
     supabase: SupabaseClient<Database>,
     options: ExportQueryOptions = {},
 ): Promise<Dive[]> => {
-    const { ids, filter } = options;
+    const { ids, filter, ownerId } = options;
 
     let query = supabase
         .from('dives')
@@ -35,6 +40,9 @@ export const fetchDivesForExport = async (
         .order('dive_date', { ascending: false })
         .order('id', { ascending: false })
         .limit(EXPORT_MAX_ROWS);
+
+    // 本人のログのみエクスポート対象にする（他人の公開ログの ids 指定を弾く）
+    if (ownerId) query = query.eq('user_id', ownerId);
 
     if (ids && ids.length > 0) {
         query = query.in('id', ids);

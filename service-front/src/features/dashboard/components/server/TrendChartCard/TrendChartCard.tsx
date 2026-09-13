@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { Heading } from '@/shared/components/typography/Heading';
+
 /** 代替データテーブルの 1 行（key が行見出し） */
 interface TrendTableRow {
     key: string;
@@ -27,11 +29,11 @@ interface TrendChartCardProps {
 export const TrendChartCard = ({ title, table, children }: TrendChartCardProps) => {
     return (
         <section className="flex flex-col gap-3 rounded-lg border border-border bg-background p-4">
-            {/* TopDashboard の h2「統計の推移」配下に置かれるため h3 が正しい階層。
+            {/* TopDashboard の h2「累計ダイビング本数」配下に置かれるため h3 が正しい階層。
                 markuplint のコンポーネント単独解析による見出しスキップ誤検知は .markuplintrc で抑止 */}
-            <h3 className="font-semibold text-base text-foreground">{title}</h3>
+            <Heading level={3}>{title}</Heading>
             {children}
-            <details className="text-sm">
+            <details>
                 <summary className="cursor-pointer text-muted-foreground">データを表で見る</summary>
                 <table className="mt-2 w-full border-collapse text-left">
                     <thead>

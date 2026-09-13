@@ -34,6 +34,12 @@ export const planSchema = yup.object({
         .transform((v) => (v === '' ? null : v))
         .nullable()
         .default(null),
+    /** 紐付けるショップ（033）。未選択（空文字）は null に正規化する */
+    diveShopId: yup
+        .string()
+        .transform((v) => (v === '' ? null : v))
+        .nullable()
+        .default(null),
 });
 
 export type PlanFormValues = yup.InferType<typeof planSchema>;

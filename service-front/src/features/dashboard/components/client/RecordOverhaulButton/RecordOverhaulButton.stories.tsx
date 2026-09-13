@@ -20,7 +20,7 @@ export const Default: Story = {
     },
 };
 
-/** 記録失敗（ダイアログ内に role="alert" のエラーを表示） */
+/** 記録失敗（ダイアログを閉じてトリガー横に role="alert" のエラーを表示） */
 export const RecordFailure: Story = {
     args: {
         regulatorId: 'reg-1',

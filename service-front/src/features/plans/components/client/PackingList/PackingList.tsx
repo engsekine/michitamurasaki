@@ -1,23 +1,27 @@
 'use client';
 
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button } from '@repo/ui/components/button';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
-
 import { type PackingItemFormValues, packingItemSchema } from '@/features/plans/schemas/plan.schema';
-import { addPackingItem, deletePackingItem, togglePackingItem } from '@/features/plans/server/actions';
+import { addPackingItem, completePacking, deletePackingItem, togglePackingItem } from '@/features/plans/server/actions';
 import type { PackingItem } from '@/features/plans/types';
 import { FormField } from '@/shared/components/form';
+import { Button } from '@/shared/components/ui/Button';
 import type { ActionResult } from '@/shared/types/action-result';
 
 interface PackingListProps {
     planId: string;
     items: PackingItem[];
+    /**
+     * 「準備完了にする」ボタンを表示するか（037）。終了済み予定では親が false を渡す（FR-009）。
+     * 持ち物 0 件時はこの値にかかわらず表示しない（FR-007）
+     */
+    canComplete?: boolean;
 }
 
-export const PackingList = ({ planId, items }: PackingListProps) => {
+export const PackingList = ({ planId, items, canComplete = false }: PackingListProps) => {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [serverError, setServerError] = useState<string | null>(null);
@@ -63,6 +67,10 @@ export const PackingList = ({ planId, items }: PackingListProps) => {
             () => reset(),
         );
     });
+
+    const handleComplete = () => {
+        runAction(() => completePacking(planId));
+    };
 
     return (
         <section className="flex flex-col gap-4">
@@ -122,6 +130,15 @@ export const PackingList = ({ planId, items }: PackingListProps) => {
                     追加
                 </Button>
             </form>
+
+            {/* 準備完了（037）。未チェックが残っていても押せる（FR-002）。0 件・終了済みでは非表示 */}
+            {canComplete && items.length > 0 && (
+                <div className="flex">
+                    <Button type="button" disabled={isPending} onClick={handleComplete}>
+                        準備完了にする
+                    </Button>
+                </div>
+            )}
         </section>
     );
 };

@@ -14,7 +14,9 @@ const buttonVariants = cva(
                     'bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
                 ghost: 'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
                 destructive:
-                    'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
+                    // 薄い destructive/10 背景では素の text-destructive がコントラスト 4:1（AA 未満）になるため、
+                    // ライトモードのみ前景を暗くして WCAG 2.1 AA（4.5:1）を満たす。ダークモードは token を維持。
+                    'bg-destructive/10 text-[color-mix(in_oklch,var(--destructive),black_14%)] hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:text-destructive dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
                 link: 'text-primary underline-offset-4 hover:underline',
             },
             size: {

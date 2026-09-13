@@ -84,14 +84,15 @@ service-front/src/
     │   │   ├── PlanForm/                 # 作成・編集共有フォーム（FormField 使用）
     │   │   ├── PlanList/                 # 予定一覧（未来 / 終了済みの区分表示）
     │   │   ├── PackingList/              # 持ち物チェックリスト（toggle / 追加 / 削除）
+    │   │   ├── PackingChecklist/         # TOP カード用の持ち物チェックリスト（toggle のみ。feat/design-change で追加）
     │   │   └── DeletePlanButton/
     │   └── server/
-    │       └── NextPlanCard/             # TOP 用「次の予定」カード
+    │       └── NextPlanCard/             # TOP 用「次の予定」カード（NextPlanCardView。データはページ側から注入）
     ├── schemas/plan.schema.ts            # yup（planSchema / packingItemSchema）
     ├── server/
     │   ├── actions.ts                    # createPlan / updatePlan / deletePlan /
     │   │                                 #   togglePackingItem / addPackingItem / deletePackingItem
-    │   └── queries.ts                    # listPlans / getPlan / getNextPlanWithProgress
+    │   └── queries.ts                    # listPlans / getPlan / listNextPlansWithProgress（旧 getNextPlanWithProgress）
     ├── lib/
     │   ├── days-until.ts                 # 残り日数計算（todayInJst 基準）
     │   └── default-packing-items.ts      # デフォルト持ち物定義
@@ -124,9 +125,9 @@ service-front/src/
 
 ### TOP への統合（FR-006〜009）
 
-- `NextPlanCard`（Server Component）が `getNextPlanWithProgress()` で「最も近い未来の予定 + 持ち物進捗（checked / total）」を取得して表示
-- 003-dashboard のダッシュボード実装に組み込むが、003 が未実装の間も `NextPlanCard` は独立してテスト可能（Storybook / 単体テスト）
-- 同日複数予定は作成日時が新しい方を表示（spec の Edge Case）
+- `page.tsx`（app 層）が `listNextPlansWithProgress(3)` で「近い順の予定 + 持ち物全件」を取得し、FV（`DashboardHero`・先頭 1 件）と本文の詳細カード（`NextPlanCardView`・最大 3 件）に注入して表示（feat/design-change で 1 件 → 最大 3 件 + カード上チェック操作に拡張。自己フェッチの `NextPlanCard` ラッパーは削除）
+- `NextPlanCardView` は props 駆動のため独立してテスト可能（Storybook / 単体テスト）
+- 同日複数予定は作成日時が新しい順（spec の Edge Case）
 
 ### エラーハンドリング
 

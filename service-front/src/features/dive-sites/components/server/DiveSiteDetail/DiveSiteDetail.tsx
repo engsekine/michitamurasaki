@@ -1,5 +1,6 @@
 import { siteLabel } from '@/features/dive-sites/lib/siteLabel';
 import type { DiveSite, SiteStats } from '@/features/dive-sites/types';
+import { Heading } from '@/shared/components/typography/Heading';
 
 interface DiveSiteDetailProps {
     site: DiveSite;
@@ -20,7 +21,7 @@ export const DiveSiteDetail = ({ site, stats }: DiveSiteDetailProps) => {
     return (
         <div className="flex flex-col gap-6">
             <header className="flex flex-col gap-1">
-                <h1 className="font-semibold text-2xl text-foreground">{siteLabel(site)}</h1>
+                <Heading level={1}>{siteLabel(site)}</Heading>
                 {site.description && <p className="text-muted-foreground text-sm">{site.description}</p>}
             </header>
 

@@ -1,22 +1,26 @@
 'use client';
 
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button } from '@repo/ui/components/button';
 import { XIcon } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type ChangeEvent, type KeyboardEvent, useEffect, useState, type WheelEvent } from 'react';
+import { type ChangeEvent, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-
+import { NoCreditBanner } from '@/features/credits/components/client/NoCreditBanner';
 import { DIVE_TYPE_OPTIONS, GAS_TYPE_OPTIONS, TANK_TYPE_OPTIONS } from '@/features/dives/constants';
 import { useDiveFormSubmit } from '@/features/dives/hooks/useDiveFormSubmit';
 import { calcBottomTimeMin } from '@/features/dives/lib/calcBottomTime';
+import { blockNonIntegerKeys, blurOnWheel } from '@/features/dives/lib/numericInput';
 import { type PhotoFileMeta, photoValidationMessage, validateNewPhotos } from '@/features/dives/lib/photoValidation';
 import { type DiveFormValues, diveSchema } from '@/features/dives/schemas/dive.schema';
 import type { DivePhotoView } from '@/features/dives/types';
 import { FormField, FormSelect, type FormSelectOption, FormTextarea, SearchSelect } from '@/shared/components/form';
 import { PhotoThumbnail } from '@/shared/components/media/PhotoThumbnail';
+import { Button } from '@/shared/components/ui/Button';
 import { todayInJst } from '@/shared/lib/date';
+
+import { DiveBuddyField } from '../DiveBuddyField';
 
 interface DiveFormProps {
     /** 編集モードで指定。新規作成のときは undefined */
@@ -26,20 +30,16 @@ interface DiveFormProps {
     siteOptions?: FormSelectOption[];
     /** 編集モードで表示する既存の添付写真。✕ でマークし、保存時にまとめて削除する */
     existingPhotos?: DivePhotoView[];
+    /** 予定→ログ移動（024）のとき、移動元の予定 ID。保存成功時にその予定が削除される */
+    fromPlanId?: string;
+    /**
+     * ログ枠の残数（026）。新規作成時にページ層が getCreditBalance() で渡す。
+     * 0 のときは NoCreditBanner を先行表示する（サーバー側トリガーが最終判定）
+     */
+    creditBalance?: number;
+    /** ショップ選択肢（033）。page 側で features/shops から取得して注入する（feature 間 import 禁止のため） */
+    shopOptions?: ReadonlyArray<{ id: string; name: string }>;
 }
-
-/** number 入力にホイールでフォーカスしたまま値が変わる事故を防ぐ */
-const blurOnWheel = (e: WheelEvent<HTMLInputElement>) => {
-    e.currentTarget.blur();
-};
-
-/** type=number でも 'e' / '+' / '-' / '.' などは入力できてしまうのでブロックする（非負整数用） */
-const BLOCKED_INTEGER_KEYS = new Set(['e', 'E', '+', '-', '.', ',']);
-const blockNonIntegerKeys = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (BLOCKED_INTEGER_KEYS.has(e.key)) {
-        e.preventDefault();
-    }
-};
 
 const createDefaultValues = (overrides?: Partial<DiveFormValues>): DiveFormValues => ({
     diveNumber: null,
@@ -71,14 +71,29 @@ const createDefaultValues = (overrides?: Partial<DiveFormValues>): DiveFormValue
     instructorName: null,
     certificationDive: false,
     notes: null,
+    buddies: [],
+    isPublic: false,
+    diveShopId: null,
     ...overrides,
 });
 
-export const DiveForm = ({ diveId, defaultValues, siteOptions = [], existingPhotos = [] }: DiveFormProps) => {
+export const DiveForm = ({
+    diveId,
+    defaultValues,
+    siteOptions = [],
+    existingPhotos = [],
+    fromPlanId,
+    creditBalance,
+    shopOptions = [],
+}: DiveFormProps) => {
     const router = useRouter();
     const isEdit = diveId !== undefined;
 
-    const { isPending, serverError, submit } = useDiveFormSubmit(diveId);
+    const { isPending, serverError, serverWarning, noCredit, submit } = useDiveFormSubmit(diveId, fromPlanId);
+
+    // 残枠 0 の案内（026 / FR-002）: ページ表示時点で 0、または送信が枠不足で拒否されたとき。
+    // 編集は枠を消費しないため対象外（FR-010）。バナー表示中も入力値は保持される
+    const showNoCreditBanner = !isEdit && (noCredit || creditBalance === 0);
 
     const {
         register,
@@ -141,6 +156,12 @@ export const DiveForm = ({ diveId, defaultValues, siteOptions = [], existingPhot
     const exitTime = watch('exitTime');
     const diveSiteId = watch('diveSiteId') ?? '';
 
+    // バディ配列のエラー（配列要素ごと or ルート）から最初の文言を取り出して表示する
+    const buddiesError = errors.buddies;
+    const buddyError = Array.isArray(buddiesError)
+        ? buddiesError.find((item) => item?.message)?.message
+        : buddiesError?.message;
+
     useEffect(() => {
         if (!isBottomTimeAutoCalc) return;
         const calculated = calcBottomTimeMin(entryTime, exitTime);
@@ -160,6 +181,8 @@ export const DiveForm = ({ diveId, defaultValues, siteOptions = [], existingPhot
             className="flex flex-col gap-6"
             noValidate
         >
+            {showNoCreditBanner && <NoCreditBanner />}
+
             <section aria-labelledby="dive-form-basic" className="flex flex-col gap-4">
                 <h2 id="dive-form-basic" className="font-semibold text-lg">
                     基本情報
@@ -282,6 +305,25 @@ export const DiveForm = ({ diveId, defaultValues, siteOptions = [], existingPhot
                     placeholder="選択しない"
                     {...register('diveType')}
                 />
+
+                {/* ショップ紐付け（033 / FR-008）。選択肢は page 側から注入される。0 件時は登録導線を表示する */}
+                {shopOptions.length > 0 ? (
+                    <FormSelect
+                        id="diveShopId"
+                        label="ショップ"
+                        options={shopOptions.map((shop) => ({ value: shop.id, label: shop.name }))}
+                        placeholder="選択しない"
+                        error={errors.diveShopId?.message}
+                        {...register('diveShopId')}
+                    />
+                ) : (
+                    <p className="text-muted-foreground text-sm">
+                        <Link href="/shops/new" className="text-primary underline">
+                            ショップを登録
+                        </Link>
+                        するとログに紐付けできます
+                    </p>
+                )}
             </section>
 
             <section aria-labelledby="dive-form-numbers" className="flex flex-col gap-4">
@@ -498,9 +540,20 @@ export const DiveForm = ({ diveId, defaultValues, siteOptions = [], existingPhot
                     />
                 </div>
 
+                <DiveBuddyField
+                    value={watch('buddies') ?? []}
+                    onChange={(next) => setValue('buddies', next, { shouldValidate: true, shouldDirty: true })}
+                    error={buddyError}
+                />
+
                 <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" {...register('certificationDive')} />
                     講習ダイブ
+                </label>
+
+                <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" {...register('isPublic')} />
+                    このログを公開する（フォロワー・共有リンクから閲覧可能になります）
                 </label>
 
                 <FormTextarea id="notes" label="メモ・印象" rows={4} {...register('notes')} />
@@ -598,6 +651,12 @@ export const DiveForm = ({ diveId, defaultValues, siteOptions = [], existingPhot
             {serverError && (
                 <div role="alert" className="text-red-600 text-sm">
                     {serverError}
+                </div>
+            )}
+
+            {serverWarning && (
+                <div role="alert" className="text-amber-700 text-sm">
+                    {serverWarning}
                 </div>
             )}
 

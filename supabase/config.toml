@@ -230,28 +230,34 @@ double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
 enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
-secure_password_change = false
+# セッション奪取時に再認証なしでパスワード変更（完全乗っ取り）されるのを防ぐため有効化（セキュリティ監査対応）
+secure_password_change = true
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
-max_frequency = "1s"
+# 第三者アドレスへの確認メール連打（メール爆撃）を防ぐため既定の 60 秒に戻す。
+# UI 側の再送クールダウン（60 秒 / 023 FR-005）とも整合する（セキュリティ監査対応）
+max_frequency = "60s"
 # Number of characters used in the email OTP.
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# 本番の認証メール送信元（023）。プロジェクト既存の Resend を SMTP として利用し、
+# サインアップ確認・パスワードリセット・メール変更などの全認証メールを実受信箱へ届ける（FR-001/007a）。
+# 有効/無効は supabase/.env の SMTP_ENABLED で切り替える（未設定だと起動エラーになるので必ず定義する）。
+# ローカルは false 推奨（Mailpit がメールを捕捉。RESEND_API_KEY 不要）、本番反映時は true + RESEND_API_KEY 必須。
+[auth.email.smtp]
+enabled = "env(SMTP_ENABLED)"
+host = "smtp.resend.com"
+port = 587
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "env(CONTACT_MAIL_FROM)"
+sender_name = "ダイビングログ"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# サインアップ確認メールの日本語テンプレート（023 / FR-003）
+[auth.email.template.confirmation]
+subject = "【ダイビングログ】メールアドレスの確認をお願いします"
+content_path = "./supabase/templates/confirmation.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
@@ -290,11 +296,12 @@ max_frequency = "5s"
 # enabled = true
 # uri = "pg-functions://<database>/<schema>/<hook_name>"
 
-# Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
+# SMS 2 要素認証（023 / US2）の送信元。Twilio を利用する。
+# 認証情報はコミットせず env で注入する（ローカルで実送信を避けたい場合は下の test_otp を使う）。
 [auth.sms.twilio]
-enabled = false
-account_sid = ""
-message_service_sid = ""
+enabled = true
+account_sid = "env(SUPABASE_AUTH_SMS_TWILIO_ACCOUNT_SID)"
+message_service_sid = "env(SUPABASE_AUTH_SMS_TWILIO_MESSAGE_SERVICE_SID)"
 # DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
 auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 
@@ -308,12 +315,12 @@ max_enrolled_factors = 10
 enroll_enabled = false
 verify_enabled = false
 
-# Configure MFA via Phone Messaging
+# Configure MFA via Phone Messaging（023 / US2）。オプトインの 2 要素認証として有効化する。
 [auth.mfa.phone]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 otp_length = 6
-template = "Your code is {{ .Code }}"
+template = "【ダイビングログ】確認コード: {{ .Code }}"
 max_frequency = "5s"
 
 # Configure MFA via WebAuthn
@@ -337,6 +344,21 @@ url = ""
 # If enabled, the nonce check will be skipped. Required for local sign in with Google auth.
 skip_nonce_check = false
 # If enabled, it will allow the user to successfully authenticate when the provider does not return an email address.
+email_optional = false
+
+# Google ログイン（016-google-login）。client_id / secret は .env で注入しコミットしない。
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+# DO NOT commit your OAuth provider secret to git. Use environment variable substitution instead:
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = ""
+url = ""
+# ローカルで Google サインインするために必須（nonce チェックをスキップ）。
+# ⚠ 本番は必ず false にすること: nonce 検証を外すと OIDC のリプレイ攻撃耐性が落ちる。
+# この config を supabase config push 等で本番へ反映する場合はこの行を false に上書きする
+# （セキュリティ監査 2026-07-02 / specs/016-google-login）
+skip_nonce_check = true
 email_optional = false
 
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.

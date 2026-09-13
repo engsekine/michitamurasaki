@@ -50,6 +50,7 @@
 | E5 | カード | `DiveCard`（`role="listitem"`） | 後述の項目定義参照 | カード全体が `/dives/[id]` へのリンク |
 | E6 | もっと見るボタン | ボタン | `もっと見る` | 次セット取得。最終ページでは非表示 |
 | E7 | 空状態 CTA | テキスト + ボタン | `最初のログを記録しよう` | データ 0 件時のみ表示 |
+| E8 | 残枠バッジ | `CreditBalanceBadge`（リンク） | `残りログ枠 N` | ヘッダー右側・新規作成ボタンの隣。/settings/log-credits への導線を兼ねる（026 / FR-013） |
 
 ### 項目定義（DiveCard 1 件）
 
@@ -95,13 +96,8 @@ graph LR
 
 ## 5. 検索仕様
 
-| 項目 | 入力 | クエリ |
-|------|------|--------|
-| ダイブ番号 | `<input type="number">` | `dive_number = ?` |
-| 潜水日 | `<input type="date">` | `dive_date = ?` |
-| ポイント名（部分一致） | `<input type="text">` | `location ilike '%?%'` |
+検索条件・URL パラメータの初版仕様（`?diveNumber=&diveDate=&location=`）は **013-dive-search-filters の検索仕様に置換済み**。項目一覧・URL クエリの contract は [`specs/013-dive-search-filters/contracts/search-params.md`](../../013-dive-search-filters/contracts/search-params.md) を参照。
 
-- 検索条件は URL クエリ（`?diveNumber=&diveDate=&location=`）で保持
 - 並び順: `dive_date desc, id desc`
 - ページサイズ: 20
 

@@ -54,12 +54,22 @@ export const getDiveSiteById = async (id: string): Promise<DiveSite | null> => {
 
 /**
  * 本人の当該サイトのログ（実績集計用に潜水日・透明度のみ）を取得する。
- * RLS により他人のログは含まれない。サイト別実績の算出元（calcSiteStats へ渡す）。
+ * RLS は他人の公開ログ（is_public）も可視にするため（021 の公開読み取りポリシー以降）、
+ * user_id の明示条件で本人分に限定する。サイト別実績の算出元（calcSiteStats へ渡す）。
  */
 export const listMyDivesForSite = async (siteId: string): Promise<SiteStatsInput[]> => {
     const supabase = await createClient();
 
-    const { data, error } = await supabase.from('dives').select('dive_date, visibility_m').eq('dive_site_id', siteId);
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('[listMyDivesForSite] not authenticated');
+
+    const { data, error } = await supabase
+        .from('dives')
+        .select('dive_date, visibility_m')
+        .eq('dive_site_id', siteId)
+        .eq('user_id', user.id);
 
     if (error || !data) {
         throw new Error(`[listMyDivesForSite] supabase error: ${error?.message ?? 'no data'}`);

@@ -51,14 +51,14 @@
 
 **Goal**: メール確認フローを含むアカウント作成の動線を成立させる
 
-**Independent Test**: `/signup` でフォーム送信 → Inbucket で確認メールのリンクをクリック → `/dives` に到達できること
+**Independent Test**: `/signup` でフォーム送信 → Inbucket で確認メールのリンクをクリック → TOP（`/`）に到達できること
 
 ### Implementation for User Story 1
 
 - [x] T004 [US1] `/signup` ページ実装 in `service-front/src/app/(auth)/signup/page.tsx` + `service-front/src/features/auth/components/client/SignupForm/`（旧 T5）
 - [x] T005 [US1] メール確認コールバック実装 in `service-front/src/app/api/auth/callback/route.ts`（旧 T10）
 
-**Checkpoint**: サインアップ → メール確認 → `/dives` 到達が単独で検証可能
+**Checkpoint**: サインアップ → メール確認 → TOP（`/`）到達が単独で検証可能
 
 ---
 
@@ -66,7 +66,7 @@
 
 **Goal**: 既存ユーザーのログインとログアウトの動線を成立させる
 
-**Independent Test**: 確認済みアカウントで `/login` → `/dives` → ログアウト → `/login` の一連を確認できること
+**Independent Test**: 確認済みアカウントで `/login` → TOP（`/`）→ ログアウト → `/login` の一連を確認できること
 
 ### Implementation for User Story 2
 
@@ -81,12 +81,12 @@
 
 **Goal**: 認証必須ルートの保護と、認証済みユーザーの認証ページからの排除
 
-**Independent Test**: 未認証で `/dives` → `/login` リダイレクト、認証済みで `/login` `/signup` → `/dives` リダイレクトを確認できること
+**Independent Test**: 未認証で `/dives` → `/login` リダイレクト、認証済みで `/login` `/signup` → TOP（`/`）リダイレクトを確認できること
 
 ### Implementation for User Story 3
 
 - [x] T008 [US3] ミドルウェアで認証必須グループ配下を保護 in `service-front/src/proxy.ts`（旧 T8）
-- [x] T009 [US3] 認証済みユーザーが `(auth)` 配下に来たら `/dives` へリダイレクト in `service-front/src/proxy.ts`（旧 T9）
+- [x] T009 [US3] 認証済みユーザーが `(auth)` 配下に来たら TOP（`/`）へリダイレクト in `service-front/src/proxy.ts`（旧 T9）
 
 **Checkpoint**: 認証ガードが単独で検証可能
 
@@ -101,7 +101,7 @@
 ### Implementation for User Story 4
 
 - [x] T010 [US4] `/reset-password` ページ実装 in `service-front/src/app/(auth)/reset-password/page.tsx` + `service-front/src/features/auth/components/client/ResetPasswordForm/`（旧 T6）
-- [ ] T011 [US4] パスワード再設定ページ（リセットリンクから飛ぶページ）実装 — 後続で対応（旧 T7）
+- [X] T011 [US4] パスワード再設定ページ（リセットリンクから飛ぶページ）実装（2026-07-02 完了: `/update-password` + `UpdatePasswordForm` + `updatePassword`。旧 T7）
 
 **Checkpoint**: パスワードリセットが単独で検証可能（T011 完了後）
 
@@ -121,7 +121,7 @@
 
 - [ ] spec.md の全受け入れ条件を Playwright で再現
 - [ ] 未認証で `/dives` にアクセス → `/login` リダイレクト
-- [ ] 認証済みで `/login` にアクセス → `/dives` リダイレクト
+- [ ] 認証済みで `/login` にアクセス → TOP（`/`）リダイレクト
 - [ ] パスワードリセットメールが Inbucket（ローカル）に届く
 
 ---
@@ -154,7 +154,7 @@
 
 1. Phase 1〜2（Setup + Foundational）を完了させる — 完了済み
 2. US1（サインアップ）を MVP として単独検証 — 完了済み
-3. US2 / US3 / US4 を順次追加 — T011（パスワード再設定ページ）のみ残
+3. US2 / US3 / US4 を順次追加 — 完了（T011 は 2026-07-02 対応）
 4. Phase 7 のテスト（T012〜T014）と受け入れ確認を実施 — 未着手
 
 ---

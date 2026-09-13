@@ -10,6 +10,7 @@ const buildDive = (overrides: Partial<RecentDiveItem> = {}): RecentDiveItem => (
     location: '石垣島・米原',
     maxDepthM: 18.5,
     bottomTimeMin: 42,
+    coverThumbUrl: null,
     ...overrides,
 });
 
@@ -40,16 +41,32 @@ describe('RecentDives', () => {
             expect(screen.queryByText(/大潮|中潮|小潮|長潮|若潮/)).not.toBeInTheDocument();
         });
 
+        it('coverThumbUrl があればその写真を表示する', () => {
+            const { container } = render(
+                <RecentDives dives={[buildDive({ coverThumbUrl: 'https://example.com/thumb.webp' })]} />,
+            );
+            // 装飾画像は alt="" のため role=img ではなく要素で取得する
+            const img = container.querySelector('img');
+            expect(img).toHaveAttribute('src', 'https://example.com/thumb.webp');
+        });
+
+        it('coverThumbUrl が null ならダミー画像（ロゴ）を表示する', () => {
+            const { container } = render(<RecentDives dives={[buildDive({ coverThumbUrl: null })]} />);
+            const img = container.querySelector('img');
+            // next/image は src を最適化 URL に変換するため、ロゴパスを含むかで判定する
+            expect(img?.getAttribute('src')).toContain('logo.png');
+        });
+
         it('「すべてのログを見る」リンクを表示する', () => {
             render(<RecentDives dives={[buildDive()]} />);
             expect(screen.getByRole('link', { name: 'すべてのログを見る' })).toHaveAttribute('href', '/dives');
         });
 
-        it('6 件以上渡されても表示は 5 件まで', () => {
-            const dives = Array.from({ length: 7 }, (_, i) => buildDive({ id: `dive-${i}`, location: `ポイント${i}` }));
+        it('4 件以上渡されても表示は 3 件まで', () => {
+            const dives = Array.from({ length: 5 }, (_, i) => buildDive({ id: `dive-${i}`, location: `ポイント${i}` }));
             render(<RecentDives dives={dives} />);
-            expect(screen.getAllByRole('listitem')).toHaveLength(5);
-            expect(screen.queryByText('ポイント5')).not.toBeInTheDocument();
+            expect(screen.getAllByRole('listitem')).toHaveLength(3);
+            expect(screen.queryByText('ポイント3')).not.toBeInTheDocument();
         });
     });
 

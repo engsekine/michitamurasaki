@@ -26,45 +26,15 @@
 2. 計画を立ててから実装する
 3. テストを書いてから実装コードを変更する
 
-## コンポーネント作成時のフォルダ構成
+## フォルダ構成（コンポーネント / lib ユーティリティ）
 
-新しい React コンポーネントを作成するときは **必ず専用フォルダに配置**し、以下の構造に揃える。
+コンポーネントと `shared/lib` ユーティリティのフォルダ構成は **service-front / admin-front 共通**の規約として [rules/folder-structure.md](rules/folder-structure.md) に定義する。新規作成・移動の際は必ず参照すること。
 
-```
-<対象パス>/<ComponentName>/
-├── <ComponentName>.tsx          ← コンポーネント本体
-├── <ComponentName>.test.tsx     ← Vitest 単体テスト
-├── <ComponentName>.stories.tsx  ← Storybook story
-└── index.ts                     ← 再 export 専用
-                                   例: export { ComponentName } from './ComponentName';
-```
-
-### 配置のルール
-
-| 対象 | 配置例 |
-|---|---|
-| 汎用コンポーネント | `src/shared/components/<group>/<ComponentName>/...` |
-| 機能固有コンポーネント | `src/features/<feature>/components/<ComponentName>/...` |
-| Client コンポーネント | `src/features/<feature>/components/client/<ComponentName>/...` |
-| Server コンポーネント | `src/features/<feature>/components/server/<ComponentName>/...` |
-
-### import パスの方針
-
-- **外部からは index.ts 経由で import**: `import { Foo } from '@/shared/components/Foo'`（中の `Foo/Foo.tsx` を直接指さない）
-- **コンポーネント内部の sibling 参照は親ディレクトリ経由**: `import { Bar } from '../Bar'`（`./Bar` ではなく `../Bar` で隣のフォルダの index.ts を解決）
-- **types / hooks / stores 等の上位参照**: フォルダ階層分の `..` を正確に。例えば `Foo/Foo.tsx` から `../../../types` で `features/<feature>/types/` に届く
-
-### 既存コンポーネントの配置例
-
-| パス | 構造 |
-|---|---|
-| `src/shared/components/layout/Header/` | Header.tsx + Header.test.tsx + Header.stories.tsx + index.ts |
-| `src/shared/components/layout/Breadcrumbs/` | 同上 |
-| `src/shared/components/layout/Footer/` | 同上 |
-| `src/shared/components/form/FormField/` | 同上 |
-| `src/features/dives/components/client/DiveSearchBar/` | 同上 |
-
-新規作成・移動の際はこれらを参照モデルとする。
+要点:
+- コンポーネント・lib ユーティリティとも **専用フォルダ**に配置し、フォルダ内に本体・テスト・`index.ts`（再 export）を並べる
+- 外部からは `index.ts` 経由で import し、フォルダ内の中身を直接指さない
+- `*.stories.tsx` は Storybook 採用プロジェクト（service-front）のみの任意ファイル
+- **shadcn / `@repo/ui` は直接編集・直接 import しない**。`src/shared/components/ui/<Name>/` のラッパー経由で使う（詳細は [rules/react.md](rules/react.md) の「UI ライブラリのラップ」）
 
 ## テスト生成ルール
 
@@ -102,7 +72,7 @@
 
 コード（特に schema・component・migration・route）を編集した場合、`specs/` 配下の関連仕様書（spec-kit 形式）に **必ず同期確認をかける**。実装が真実なので、ズレを見つけたら仕様書側を実装に合わせて更新する。
 
-同期対象の主なマッピング:
+同期対象の主なマッピング（`src/...` はワークスペースプレフィックス `service-front/` / `admin-front/` を除いた相対パス。[rules/diff-scope.md](rules/diff-scope.md) 参照）:
 
 | 編集したコード | 確認する仕様書 |
 |---|---|
@@ -124,6 +94,18 @@
 | 大規模リファクタ | `/sync-spec` で全範囲スキャン後、ユーザーと合意してから書き換え |
 
 `/sync-spec <path>` は対象ファイルを絞ったチェックも可能。コミット前に `/sync-spec` を 1 回回す運用が安全。
+
+## レビュー修正ルール
+
+レビュー指摘への修正対応（PR レビューコメント対応・`/review` の指摘対応など）を行った場合、修正の **最後に必ず `biome check` を実行する**。
+
+```bash
+npx biome check .
+```
+
+- 指摘（import 順・フォーマット等）があれば `npx biome check --write .` で修正してから完了とする
+- `--write` で解消しないエラーは手動で修正する
+- biome check が通っていない状態でレビュー修正完了を報告しない
 
 ## フレームワーク・ライブラリの公式ドキュメント参照
 
@@ -158,6 +140,8 @@
 
 | ファイル | 内容 |
 |---------|------|
+| `rules/folder-structure.md` | フォルダ構成規約（コンポーネント / lib ユーティリティ・両プロジェクト共通） |
+| `rules/diff-scope.md` | 変更差分の収集規約（ベースブランチ検出・3 層統合・除外 pathspec・import 逆引き。差分を扱うスキル共通） |
 | `rules/react.md` | React コーディング規約 |
 | `rules/typescript.md` | TypeScript コーディング規約 |
 | `rules/html.md` | HTML コーディング規約 |
@@ -178,7 +162,7 @@
 | `/code-fix [ファイル]` | コード規約に基づいてコードを修正する |
 | `/sync-spec [ファイル]` | 変更コードと `specs/` のずれを検出し、仕様書を実装に合わせて修正する |
 | `/summary` | PRディスクリプションを生成する |
-| `/suggest-commit` | 変更差分からコミット名を提案する |
+| `/create-commit-message` | 変更差分からコミット名を提案し、選択されたメッセージでコミットする |
 | `/reply-review <コメント>` | レビューコメントへの返信ドラフトを生成する |
 | `/empirical-prompt-tuning` | プロンプトやskillを実行・評価し反復改善する |
 | `/generate-with-tests <path>` | コンポーネントに対し Vitest / Storybook / Playwright テストを並列生成する |
@@ -190,12 +174,13 @@
 | `/speckit-implement` | spec-kit: tasks.md に従って実装する |
 | `/speckit-clarify` / `/speckit-analyze` / `/speckit-checklist` | spec-kit: 仕様の明確化・整合性分析・チェックリスト生成 |
 
+## アーキテクチャ（service-front / admin-front 共通）
+
+両プロジェクトとも `arch/feature-based.md` に基づく **Feature-based + shared/ アーキテクチャ**に従う（`app/` → `features/` → `shared/` の依存方向、機能単位の分割、横断リソースは `shared/` へ）。コードを生成・移動するときは `arch/` 配下のドキュメントを必ず参照すること。
+
+フォルダ・ファイルの配置粒度は [rules/folder-structure.md](rules/folder-structure.md)（両プロジェクト共通）を参照する。
+
 ## service-front プロジェクト
-
-### アーキテクチャ
-
-設計の詳細は `arch/feature-based.md` に基づく Feature-based アーキテクチャに従う。
-コードを生成するときは `arch/` 配下のドキュメントを参照すること。
 
 ### 技術スタック
 
@@ -211,6 +196,7 @@
 - データフェッチは Server Components で行う
 - ページ作成時は必ず `generatePageMetadata`（`@/shared/config/metadata`）を使用して `metadata` をエクスポートする
 - ページには基本的に `Header` と `Footer`（`@/shared/components/layout`）を含める
+- 見出し（h1〜h4）は生の `hN` タグではなく共通の `Heading`（`@/shared/components/typography/Heading`）を使用する。見た目の統一に加え、生タグと混在すると markuplint の単独解析で heading-levels の誤検知が起きるため（既定スタイルが合わない場合は `className` で上書き）
 
 ## spec-kit agent context（自動管理セクション）
 
@@ -219,5 +205,5 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/015-admin-panel/plan.md
+at specs/037-forgotten-item-check/plan.md
 <!-- SPECKIT END -->

@@ -50,15 +50,15 @@ $$;
 
 ## RPC: public.get_dive_monthly_stats(months_back integer default 12)
 
-月別の本数 / 平均水温 / 月内最大深度。基準月（現在月）から遡って `months_back` ヶ月分のうち、**記録のある月のみ**返す。
+月別のダイビング本数。基準月（現在月）から遡って `months_back` ヶ月分のうち、**記録のある月のみ**返す。
+
+> **変更（feat/design-change・2026-07-10）**: 平均水温・月内最大深度（コンディション記録系）の集計を廃止し、月別の本数のみを返す構成に変更した（マイグレーション `20260710090000_alter_get_dive_monthly_stats_count_only.sql`。戻り値型の変更のため drop → create）。統計の推移は「年別本数 / 月別本数」の 2 枚構成。
 
 ```sql
-create or replace function public.get_dive_monthly_stats(months_back integer default 12)
+create function public.get_dive_monthly_stats(months_back integer default 12)
 returns table (
-    month text,                 -- 'YYYY-MM'
-    dive_count bigint,
-    avg_water_temp_c numeric,   -- 水温記録ログのみの平均。全件未入力の月は null
-    max_depth_m numeric         -- 月内の最大深度
+    month text,        -- 'YYYY-MM'
+    dive_count bigint
 )
 language sql
 stable
@@ -67,9 +67,7 @@ set search_path = ''
 as $$
     select
         to_char(dive_date, 'YYYY-MM'),
-        count(*),
-        round(avg(water_temp_c), 1),    -- null は avg が自動除外（FR-006）
-        max(max_depth_m)
+        count(*)
     from public.dives
     where user_id = (select auth.uid())
       and dive_date >= date_trunc('month', current_date) - make_interval(months => greatest(months_back, 1) - 1)
@@ -82,14 +80,10 @@ $$;
 |---|---|---|
 | `month` | `text` | `YYYY-MM` 形式の年月 |
 | `dive_count` | `bigint` | その月の本数 |
-| `avg_water_temp_c` | `numeric` | 平均水温（小数 1 桁）。水温入力ログが 0 件の月は `null` |
-| `max_depth_m` | `numeric` | その月の最大深度（FR-004 の期間代表値） |
 
 ### 設計メモ
 
-- `avg(water_temp_c)` は SQL 標準どおり null を集計対象から除外するため、FR-006（未入力を 0℃ 扱いしない）は追加ロジックなしで満たされる
 - `months_back` の既定 12 は spec Assumptions（直近 12 ヶ月）に対応。呼び出し側は固定値 12 のみ渡し、SQL 側でも `greatest(months_back, 1)` で 1 未満を防御する
-- 最大深度・平均水温の推移も本 RPC 由来のため対象は直近 12 ヶ月（spec Assumptions / research.md R-005）
 - 記録のある月のみ返す（0 件月の補完・空状態判定はアプリ層 — research.md R-006）
 - 2 RPC とも `security invoker` + 既存 RLS ポリシー（`dives` の select ポリシー）で本人行のみ集計（FR-008）。`where user_id = (select auth.uid())` は RLS と二重の防御 + インデックス（`idx_dives_user_id_dive_date`）利用のため明示する
 - `set search_path = ''` + 全オブジェクトのスキーマ修飾（`.claude/rules/sql.md` 準拠）
@@ -110,10 +104,6 @@ export interface MonthlyDiveStat {
     /** 'YYYY-MM' */
     month: string;
     diveCount: number;
-    /** 平均水温。記録なし月は null（0 と区別する） */
-    avgWaterTempC: number | null;
-    /** 月内最大深度。ダイブなし月は null */
-    maxDepthM: number | null;
 }
 ```
 

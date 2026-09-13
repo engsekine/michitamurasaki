@@ -1,21 +1,23 @@
-import { buttonVariants } from '@repo/ui/components/button';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-
-import { DeletePlanButton, daysUntil, getPlan, PackingList } from '@/features/plans';
+import {
+    canMovePlanToLog,
+    DeletePlanButton,
+    daysUntil,
+    ForgottenItemChecklist,
+    getPlan,
+    PackingList,
+} from '@/features/plans';
 import { Breadcrumbs } from '@/shared/components/layout/Breadcrumbs';
+import { Heading } from '@/shared/components/typography/Heading';
+import { buttonVariants } from '@/shared/components/ui/Button';
 import { generatePageMetadata } from '@/shared/config/metadata';
-import { todayInJst } from '@/shared/lib/date';
+import { formatJstDate, todayInJst } from '@/shared/lib/date';
 import { getTidePhase, TIDE_PHASE_LABELS } from '@/shared/lib/tide';
 
 interface PlanPageProps {
     params: Promise<{ id: string }>;
 }
-
-const formatDate = (isoDate: string): string => {
-    const [y, m, d] = isoDate.split('-');
-    return `${y}/${m}/${d}`;
-};
 
 export const generateMetadata = async ({ params }: PlanPageProps) => {
     const { id } = await params;
@@ -46,7 +48,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
                         <div className="flex items-center gap-2">
                             <span className="text-muted-foreground text-sm">
                                 <span className="sr-only">予定日: </span>
-                                {formatDate(plan.plannedOn)}
+                                {formatJstDate(plan.plannedOn)}
                             </span>
                             {tidePhase !== null && (
                                 <span className="rounded-md bg-muted px-2 py-0.5 text-foreground text-xs">
@@ -59,6 +61,8 @@ export default async function PlanPage({ params }: PlanPageProps) {
                         {remaining < 0 && (
                             <span className="rounded-md bg-muted px-2 py-0.5 text-foreground text-xs">終了済み</span>
                         )}
+                        {/* アクセント色 #1a73cc は淡色背景上で 4.21:1 と AA 未達のため、
+                            トークンの primary（DiveDetail の講習ダイブバッジと同パターン）を使う */}
                         {remaining === 0 && (
                             <span className="rounded-md bg-primary/10 px-2 py-0.5 text-primary text-xs">今日</span>
                         )}
@@ -68,9 +72,28 @@ export default async function PlanPage({ params }: PlanPageProps) {
                             </span>
                         )}
                     </div>
-                    <h1 className="font-semibold text-2xl text-foreground">{plan.location}</h1>
+                    <Heading level={1}>{plan.location}</Heading>
+                    {/* 紐付けたショップ（033 / FR-007）。本人向け詳細のみに表示する */}
+                    {plan.shop && (
+                        <p className="text-muted-foreground text-sm">
+                            <span className="sr-only">ショップ: </span>
+                            <Link href={`/shops/${plan.shop.id}`} className="text-primary underline">
+                                {plan.shop.name}
+                            </Link>
+                        </p>
+                    )}
                     {plan.notes && <p className="whitespace-pre-wrap text-muted-foreground text-sm">{plan.notes}</p>}
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* 当日以前の予定のみ「ログに記録する」を表示（未来日は非表示 / 024 FR-001,002） */}
+                        {canMovePlanToLog(plan.plannedOn, todayInJst()) && (
+                            <Link
+                                href={`/dives/new?fromPlanId=${plan.id}`}
+                                className={buttonVariants({ variant: 'default' })}
+                                aria-label={`${plan.location}の予定をログに記録する`}
+                            >
+                                ログに記録する
+                            </Link>
+                        )}
                         <Link href={`/plans/${plan.id}/edit`} className={buttonVariants({ variant: 'outline' })}>
                             編集
                         </Link>
@@ -80,9 +103,14 @@ export default async function PlanPage({ params }: PlanPageProps) {
 
                 <section aria-labelledby="packing-list-heading" className="flex flex-col gap-3">
                     <h2 id="packing-list-heading" className="font-semibold text-lg">
-                        持ち物リスト
+                        {plan.packingCompletedAt ? '忘れ物確認リスト' : '持ち物リスト'}
                     </h2>
-                    <PackingList planId={plan.id} items={plan.packingItems} />
+                    {/* 完了中は忘れ物確認リストに置き換える（037 / FR-003・Q2）。終了済み予定は操作不可（FR-009） */}
+                    {plan.packingCompletedAt ? (
+                        <ForgottenItemChecklist planId={plan.id} items={plan.packingItems} readOnly={remaining < 0} />
+                    ) : (
+                        <PackingList planId={plan.id} items={plan.packingItems} canComplete={remaining >= 0} />
+                    )}
                 </section>
             </div>
         </div>

@@ -63,12 +63,14 @@
 |---|---|---|
 | `users can read own dive photos` | `SELECT` | `(select auth.uid()) = user_id` |
 | `anyone can read public dive photos` | `SELECT` | `exists (select 1 from public.dives d where d.id = dive_id and d.is_public)` |
-| `users can insert own dive photos` | `INSERT` | `with check ((select auth.uid()) = user_id)` |
-| `users can update own dive photos` | `UPDATE` | `using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id)` |
-| `users can delete own dive photos` | `DELETE` | `using ((select auth.uid()) = user_id)` |
+| `users can insert own dive photos` | `INSERT` | `with check ((select auth.uid()) = user_id and exists (select 1 from public.dives d where d.id = dive_id and d.user_id = (select auth.uid()) and d.deleted_at is null))` |
+| `users can update own dive photos` | `UPDATE` | `using ((select auth.uid()) = user_id and deleted_at is null)` / `with check ((select auth.uid()) = user_id and deleted_at is null and exists (select 1 from public.dives d where d.id = dive_id and d.user_id = (select auth.uid()) and d.deleted_at is null))` |
+| `users can delete own dive photos` | `DELETE` | `using ((select auth.uid()) = user_id and deleted_at is null)` |
 
 - `auth.uid()` は `(select auth.uid())` で包む（sql.md `auth_rls_initplan`）。
 - 公開 SELECT は `dives.is_public` を `exists` で参照し FR-006 / FR-008 を満たす（非公開化で即 false）。
+- INSERT / UPDATE の `with check` は `dive_id` が「本人所有かつ未削除の dive」であることを検証する（`20260702110000_alter_dive_photos_write_policies.sql`。「自分の user_id + 他人の dive_id」の挿入で他人の公開ログに任意画像を表示させられる問題への対応）。
+- UPDATE / DELETE は `deleted_at is null` の行に限定し、管理画面でモデレーション（論理削除）された写真を所有者が編集・物理削除できないようにする（同マイグレーション）。
 
 ### updated_at トリガ
 
@@ -105,7 +107,7 @@ dive-photos/{user_id}/{dive_id}/{kind}/{photo_id}.{ext}
 
 ### Storage 公開判定関数
 
-`storage.objects` ポリシー式から呼ぶ判定ヘルパー。パスから `dive_id` を取り出し、その dive が公開中かを返す。
+`storage.objects` ポリシー式から呼ぶ判定ヘルパー。パスから `dive_id` を取り出し、その dive が公開中**かつ未削除**かを返す。
 
 ```sql
 create or replace function public.is_public_dive_photo(object_name text)
@@ -120,11 +122,13 @@ as $$
         from public.dives d
         where d.id = (split_part(object_name, '/', 2))::uuid
           and d.is_public
+          and d.deleted_at is null
     );
 $$;
 ```
 
 - `security definer` + `set search_path = ''`（sql.md）。`split_part(name, '/', 2)` で 2 階層目の `dive_id` を取得。
+- `d.deleted_at is null` は `20260702110200_alter_is_public_dive_photo_exclude_deleted.sql` で追加。論理削除された公開ログの写真オブジェクト（display / thumb）がパスを知る anon から取得可能なまま残る問題への対応。
 
 ### `storage.objects` RLS ポリシー（バケット `dive-photos`）
 

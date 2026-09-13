@@ -1,4 +1,11 @@
-import { buildPhotoAlt, mapDivePhotoRow, toBrowserSignedUrl, toDivePhotoView } from './photoView';
+import {
+    buildPhotoAlt,
+    type CoverThumbRef,
+    mapDivePhotoRow,
+    selectCoverThumbPaths,
+    toBrowserSignedUrl,
+    toDivePhotoView,
+} from './photoView';
 
 const row = (over: Record<string, unknown> = {}) => ({
     id: 'p1',
@@ -92,5 +99,44 @@ describe('toDivePhotoView', () => {
 
     it('URL 解決に失敗した写真は null', () => {
         expect(toDivePhotoView(photo, new Map(), 'fb')).toBeNull();
+    });
+});
+
+describe('selectCoverThumbPaths', () => {
+    const ref = (over: Partial<CoverThumbRef> = {}): CoverThumbRef => ({
+        diveId: 'd1',
+        thumbPath: 't0.webp',
+        isCover: false,
+        sortOrder: 0,
+        ...over,
+    });
+
+    it('写真がなければ空マップ', () => {
+        expect(selectCoverThumbPaths([]).size).toBe(0);
+    });
+
+    it('cover フラグの写真を優先する（sort_order が後でも勝つ）', () => {
+        const result = selectCoverThumbPaths([
+            ref({ thumbPath: 'a.webp', isCover: false, sortOrder: 0 }),
+            ref({ thumbPath: 'cover.webp', isCover: true, sortOrder: 5 }),
+        ]);
+        expect(result.get('d1')).toBe('cover.webp');
+    });
+
+    it('cover がなければ sort_order の小さい写真を選ぶ', () => {
+        const result = selectCoverThumbPaths([
+            ref({ thumbPath: 'b.webp', sortOrder: 2 }),
+            ref({ thumbPath: 'a.webp', sortOrder: 1 }),
+        ]);
+        expect(result.get('d1')).toBe('a.webp');
+    });
+
+    it('ダイブごとに 1 枚ずつ選ぶ', () => {
+        const result = selectCoverThumbPaths([
+            ref({ diveId: 'd1', thumbPath: 'd1.webp', sortOrder: 0 }),
+            ref({ diveId: 'd2', thumbPath: 'd2.webp', sortOrder: 0 }),
+        ]);
+        expect(result.get('d1')).toBe('d1.webp');
+        expect(result.get('d2')).toBe('d2.webp');
     });
 });

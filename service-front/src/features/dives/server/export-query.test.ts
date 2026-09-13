@@ -73,6 +73,14 @@ describe('fetchDivesForExport', () => {
         expect(builder.eq).not.toHaveBeenCalledWith('dive_type', 'boat');
     });
 
+    it('ownerId 指定時は user_id で本人のログに絞る（他人の公開ログの ids エクスポートを弾く）', async () => {
+        const { client, builder } = createMockClient({ data: [], error: null });
+
+        await fetchDivesForExport(client, { ids: ['a'], ownerId: 'u1' });
+
+        expect(builder.eq).toHaveBeenCalledWith('user_id', 'u1');
+    });
+
     it('ids 未指定時はフィルタ（期間）を適用する', async () => {
         const { client, builder } = createMockClient({ data: [], error: null });
 

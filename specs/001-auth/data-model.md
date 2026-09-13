@@ -159,6 +159,8 @@ erDiagram
 | `created_at` | `timestamptz` | NO | `now()` | 作成日時 |
 | `updated_at` | `timestamptz` | NO | `now()` | 更新日時（トリガで自動更新） |
 
+> 後続 feature による追加列: `terms_version` / `terms_agreed_at`（018）、`diver_type` / `diver_number`（019）、`is_email_opted_in` / `email_opted_in_at`（022）。定義は各 feature の data-model.md を参照。
+
 ### 3. 制約
 
 #### 主キー
@@ -175,6 +177,12 @@ erDiagram
 
 `user_id` が主キーのため 1:1 が保証される。
 
+| 制約名 | 内容 | 補足 |
+|--------|------|------|
+| `user_details_nickname_key` | `unique (lower(trim(nickname)))` | ニックネームの一意制約。大文字小文字・前後空白を正規化した表示名で重複禁止（`20260701110000_add_user_details_nickname_unique.sql`）。フォロー/検索の表示名の曖昧さ解消のため導入 |
+
+使用可否判定は SECURITY DEFINER 関数 `is_nickname_taken(p_nickname text, p_exclude_user_id uuid default null) returns boolean`（`search_path=''`・anon/authenticated に grant）で行い、サインアップ／プロフィール補完・編集の各 Server Action が書き込み前に事前チェックして親切なエラーを返す（競合時は一意制約 23505 をフォールバックで捕捉）。`user_details` は本人のみ SELECT 可のため、他ユーザー nickname 照合には boolean だけを返すこの関数を使う。
+
 #### CHECK 制約
 
 | 制約名 | 内容 | 補足 |
@@ -184,7 +192,7 @@ erDiagram
 | `user_details_last_name_romaji_check` | `length(trim(last_name_romaji)) > 0` | 同上 |
 | `user_details_first_name_romaji_check` | `length(trim(first_name_romaji)) > 0` | 同上 |
 | `user_details_nickname_check` | `length(trim(nickname)) > 0` | 同上 |
-| `user_details_birth_on_check` | `birth_on >= '1900-01-01' and birth_on <= current_date` | 1900-01-01〜当日 |
+| `user_details_birth_on_check` | `birth_on >= '1900-01-01' and birth_on <= (now() at time zone 'Asia/Tokyo')::date` | 1900-01-01〜当日（JST 基準） |
 | `user_details_gender_check` | `gender in ('male', 'female', 'unanswered')` | 3 値列挙 |
 | `user_details_height_cm_check` | `height_cm > 0 and height_cm <= 300` | `NULL` は許容 |
 | `user_details_weight_kg_check` | `weight_kg > 0 and weight_kg <= 500` | `NULL` は許容 |

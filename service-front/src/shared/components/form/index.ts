@@ -1,3 +1,5 @@
+export { EmailOptInField } from './EmailOptInField';
+export { FormCheckbox } from './FormCheckbox';
 export { FormField } from './FormField';
 export type { FormRadioOption } from './FormRadioGroup';
 export { FormRadioGroup } from './FormRadioGroup';

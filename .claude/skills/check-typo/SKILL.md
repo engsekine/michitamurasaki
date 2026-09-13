@@ -2,6 +2,7 @@
 name: check-typo
 description: 変更差分に含まれるタイポ・不要な文字変更をチェックします。
 user-invocable: true
+allowed-tools: Read, Grep, Glob, Bash(git diff:*), Bash(git rev-parse:*), Bash(git merge-base:*), Bash(git branch:*), Bash(npx cspell:*)
 ---
 
 変更差分に含まれるタイポ・不要な文字変更をチェックします。
@@ -16,36 +17,30 @@ user-invocable: true
 
 ### 1. 変更ファイルの取得
 
-以下のコマンドで変更差分を取得する:
-
-```bash
-git diff HEAD                     # 全変更の差分詳細
-git diff HEAD --name-only         # 変更ファイル一覧
-```
+[.claude/rules/diff-scope.md](../../rules/diff-scope.md) に従い、未ステージ・ステージング済み・コミット済みの 3 層を統合した変更差分（差分詳細 + ファイル一覧）を取得する。除外 pathspec も同規約に従う。
 
 変更ファイルが存在しない場合は「変更差分がありません」と出力して終了。
 
-**除外対象**（以下のファイルはスキップ）:
-- `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
-- `node_modules/**`, `dist/**`, `build/**`, `.next/**`
-- バイナリファイル（画像、フォント等）
+### 2. スペルチェック（cspell 一次パス）
 
-差分取得時に除外する:
+リポジトリルートに `cspell.json` がある場合は、まず cspell を機械チェックとして実行する:
+
 ```bash
-git diff HEAD -- ':!package-lock.json' ':!yarn.lock' ':!pnpm-lock.yaml' ':!node_modules' ':!dist' ':!build' ':!.next'
+npx cspell --no-progress --no-summary <変更ファイル...>
 ```
 
-### 2. タイポチェック
+- cspell の指摘は差分の**追加行に含まれるもののみ**「タイポの可能性」として採用する（既存行の指摘は対象外）
+- `cspell.json` の `words` 登録語は cspell 側で自動的に除外される
+- cspell が使えない場合（`cspell.json` なし / 実行失敗）はこのステップをスキップし、次の LLM チェックで英単語のスペルミスも見る
 
-差分の追加行（`+` で始まる行）を対象に、以下のパターンを検出する。
+### 3. タイポチェック（LLM パス）
 
-**スペルミス（コード）:**
-- 変数名・関数名のスペルミス（例: `fucntion` → `function`, `consoel` → `console`, `recieve` → `receive`）
-- import文のパス誤り
+差分の追加行（`+` で始まる行）を対象に、cspell では拾えない以下のパターンを検出する。
 
-**スペルミス（コメント・文字列）:**
+**スペルミス・誤用:**
 - 日本語の誤字脱字
-- 英単語のスペルミス
+- 辞書に載っている正しい単語だが文脈上誤りの変数名・関数名（例: `fetchUser` が実際は一覧を返す等）
+- import文のパス誤り
 
 **全角/半角混在（コード内のみ）:**
 - 全角スペース `　` の混入
@@ -59,15 +54,15 @@ git diff HEAD -- ':!package-lock.json' ':!yarn.lock' ':!pnpm-lock.yaml' ':!node_
 - `cspell.json` の `words`（無ければ `.vscode/settings.json` の `cSpell.words`）に登録されている単語はタイポとしない
 - プロジェクト固有の略語・造語は警告レベルで報告する（Error にしない）
 
-### 3. 不要な文字変更チェック
+### 4. 不要な文字変更チェック
 
-空白のみの変更を検出する:
+空白のみの変更を検出する。手順1と同じ範囲（3 層 + 除外 pathspec）の差分に `-w` を付けて再取得する:
 
 ```bash
-git diff -w HEAD -- ':!package-lock.json' ':!yarn.lock' ':!pnpm-lock.yaml'
+git diff -w <手順1と同じ範囲・pathspec>
 ```
 
-`git diff HEAD` の結果と `git diff -w HEAD` の結果を比較し、`-w` で差分が消える箇所を「空白のみの変更」として検出する。
+通常の差分と `-w` 付きの差分を比較し、`-w` で差分が消える箇所を「空白のみの変更」として検出する。
 
 **検出パターン:**
 - 末尾の空白追加/削除のみ
@@ -79,7 +74,7 @@ git diff -w HEAD -- ':!package-lock.json' ':!yarn.lock' ':!pnpm-lock.yaml'
 - `.prettierrc` / `.editorconfig` が存在し、そのルールに沿った変更
 - リファクタリングに伴うインデント変更（コードブロックの移動を含む差分）
 
-### 4. 出力フォーマット
+### 5. 出力フォーマット
 
 ```
 タイポ・不要な文字変更チェック
@@ -108,7 +103,7 @@ git diff -w HEAD -- ':!package-lock.json' ':!yarn.lock' ':!pnpm-lock.yaml'
 合計: <合計>件の確認事項
 ```
 
-### 5. 修正提案
+### 6. 修正提案
 
 問題が見つかった場合:
 1. タイポは自動修正を提案

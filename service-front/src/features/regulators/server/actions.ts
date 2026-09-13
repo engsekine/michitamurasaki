@@ -2,9 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 
-import type { RegulatorFormValues } from '@/features/regulators/schemas/regulator.schema';
+import { type RegulatorFormValues, regulatorSchema } from '@/features/regulators/schemas/regulator.schema';
+import { requireUser } from '@/shared/lib/auth';
 import { todayInJst } from '@/shared/lib/date';
 import { createClient } from '@/shared/lib/supabase/server';
+import { validateWithSchema } from '@/shared/lib/validation';
 import { type ActionResult, actionFailure, actionSuccess } from '@/shared/types/action-result';
 
 /** RegulatorFormValues を DB の snake_case にマッピング */
@@ -47,10 +49,12 @@ const demoteCurrentPrimary = async (
 export const createRegulator = async (input: RegulatorFormValues): Promise<ActionResult<{ id: string }>> => {
     const supabase = await createClient();
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return actionFailure('ログインが必要です');
+    const { user, failure } = await requireUser(supabase);
+    if (failure) return failure;
+
+    const validated = await validateWithSchema(regulatorSchema, input);
+    if (validated.error !== undefined) return actionFailure(validated.error);
+    const values = validated.values;
 
     const { count, error: countError } = await supabase.from('regulators').select('id', { count: 'exact', head: true });
 
@@ -60,9 +64,9 @@ export const createRegulator = async (input: RegulatorFormValues): Promise<Actio
     }
 
     const isFirst = (count ?? 0) === 0;
-    const isPrimary = isFirst || input.isPrimary;
+    const isPrimary = isFirst || values.isPrimary;
 
-    if (!isFirst && input.isPrimary) {
+    if (!isFirst && values.isPrimary) {
         const demoteError = await demoteCurrentPrimary(supabase);
         if (demoteError) {
             console.error('[createRegulator] demote error:', demoteError);
@@ -72,7 +76,7 @@ export const createRegulator = async (input: RegulatorFormValues): Promise<Actio
 
     const { data, error } = await supabase
         .from('regulators')
-        .insert({ ...toDbRow(input), is_primary: isPrimary, user_id: user.id })
+        .insert({ ...toDbRow(values), is_primary: isPrimary, user_id: user.id })
         .select('id')
         .single();
 
@@ -89,12 +93,14 @@ export const createRegulator = async (input: RegulatorFormValues): Promise<Actio
 export const updateRegulator = async (id: string, input: RegulatorFormValues): Promise<ActionResult> => {
     const supabase = await createClient();
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return actionFailure('ログインが必要です');
+    const { user, failure } = await requireUser(supabase);
+    if (failure) return failure;
 
-    if (input.isPrimary) {
+    const validated = await validateWithSchema(regulatorSchema, input);
+    if (validated.error !== undefined) return actionFailure(validated.error);
+    const values = validated.values;
+
+    if (values.isPrimary) {
         const demoteError = await demoteCurrentPrimary(supabase, id);
         if (demoteError) {
             console.error('[updateRegulator] demote error:', demoteError);
@@ -102,7 +108,7 @@ export const updateRegulator = async (id: string, input: RegulatorFormValues): P
         }
     }
 
-    const { error } = await supabase.from('regulators').update(toDbRow(input)).eq('id', id);
+    const { error } = await supabase.from('regulators').update(toDbRow(values)).eq('id', id).eq('user_id', user.id);
 
     if (error) {
         console.error('[updateRegulator] supabase error:', error);
@@ -117,12 +123,10 @@ export const updateRegulator = async (id: string, input: RegulatorFormValues): P
 export const deleteRegulator = async (id: string): Promise<ActionResult> => {
     const supabase = await createClient();
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return actionFailure('ログインが必要です');
+    const { user, failure } = await requireUser(supabase);
+    if (failure) return failure;
 
-    const { error } = await supabase.from('regulators').delete().eq('id', id);
+    const { error } = await supabase.from('regulators').delete().eq('id', id).eq('user_id', user.id);
 
     if (error) {
         console.error('[deleteRegulator] supabase error:', error);
@@ -137,15 +141,14 @@ export const deleteRegulator = async (id: string): Promise<ActionResult> => {
 export const recordOverhaul = async (regulatorId: string): Promise<ActionResult> => {
     const supabase = await createClient();
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return actionFailure('ログインが必要です');
+    const { user, failure } = await requireUser(supabase);
+    if (failure) return failure;
 
     const { error } = await supabase
         .from('regulators')
         .update({ last_overhauled_on: todayInJst() })
-        .eq('id', regulatorId);
+        .eq('id', regulatorId)
+        .eq('user_id', user.id);
 
     if (error) {
         console.error('[recordOverhaul] supabase error:', error);

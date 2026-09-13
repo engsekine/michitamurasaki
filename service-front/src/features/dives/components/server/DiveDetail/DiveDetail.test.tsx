@@ -2,12 +2,22 @@ import { render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 
 import type { Dive } from '@/features/dives/types';
+import { SITE_NAME, SITE_URL } from '@/shared/constants/site';
 
 import { DiveDetail } from './DiveDetail';
 
 // 削除ボタンは Server Action に依存するためモックする（確認ダイアログの挙動は DeleteDiveButton 側でテスト済み）
 vi.mock('@/features/dives/components/client/DeleteDiveButton', () => ({
     DeleteDiveButton: () => <button type="button">削除</button>,
+}));
+
+// canManage 時に描画されるクライアント子要素は useRouter / Server Action に依存するためモックする
+vi.mock('@/features/dives/components/client/DivePhotoUploader', () => ({
+    DivePhotoUploader: () => <div data-testid="dive-photo-uploader" />,
+}));
+
+vi.mock('@/features/dives/components/client/DiveVisibilityToggle', () => ({
+    DiveVisibilityToggle: () => <div data-testid="dive-visibility-toggle" />,
 }));
 
 const baseDive: Dive = {
@@ -19,6 +29,8 @@ const baseDive: Dive = {
     exitTime: '10:18:00',
     location: '伊豆 / 大瀬崎',
     diveSiteId: null,
+    diveShopId: null,
+    shop: null,
     diveSite: null,
     diveType: 'ファンダイブ',
     weather: '晴れ',
@@ -55,8 +67,18 @@ describe('DiveDetail', () => {
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('伊豆 / 大瀬崎');
     });
 
-    it('単一ログの PDF 出力リンクを表示する', () => {
+    it('likeAction スロットに渡した要素をヘッダーに描画する（spec 027）', () => {
+        render(<DiveDetail dive={baseDive} likeAction={<div data-testid="like-action" />} />);
+        expect(screen.getByTestId('like-action')).toBeInTheDocument();
+    });
+
+    it('likeAction 未指定でも描画が壊れない', () => {
         render(<DiveDetail dive={baseDive} />);
+        expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+    });
+
+    it('作成者本人(canManage)には単一ログの PDF 出力リンクを表示する', () => {
+        render(<DiveDetail dive={baseDive} canManage />);
         expect(screen.getByRole('link', { name: 'PDF出力' })).toHaveAttribute(
             'href',
             '/dives/export?format=pdf&ids=dive-1',
@@ -130,9 +152,34 @@ describe('DiveDetail', () => {
         expect(screen.queryByText(/エア消費率/)).not.toBeInTheDocument();
     });
 
-    it('編集ページへのリンクを表示する', () => {
-        render(<DiveDetail dive={baseDive} />);
+    it('作成者本人(canManage)には編集ページへのリンクを表示する', () => {
+        render(<DiveDetail dive={baseDive} canManage />);
         expect(screen.getByRole('link', { name: '編集' })).toHaveAttribute('href', '/dives/dive-1/edit');
+    });
+
+    it('作成者以外(canManage=false)には編集・削除・PDF出力を表示しない', () => {
+        render(<DiveDetail dive={baseDive} />);
+        expect(screen.queryByRole('link', { name: '編集' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '削除' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'PDF出力' })).not.toBeInTheDocument();
+    });
+
+    it('公開ログには SNS 共有ボタンを表示し、共有 URL とテキストを渡す（spec 035 FR-001/006/007）', () => {
+        // canManage に依存しない（閲覧者にも表示される）ことを canManage=false で確認する
+        render(<DiveDetail dive={{ ...baseDive, isPublic: true }} />);
+
+        const xLink = screen.getByRole('link', { name: 'X で共有' });
+        const params = new URL(xLink.getAttribute('href') ?? '').searchParams;
+        expect(params.get('url')).toBe(`${SITE_URL}/dives/dive-1`);
+        expect(params.get('text')).toBe(`伊豆 / 大瀬崎のダイビングログ（2026/04/15）| ${SITE_NAME}`);
+        expect(screen.getByRole('link', { name: 'Facebook で共有' })).toBeInTheDocument();
+    });
+
+    it('非公開ログには SNS 共有ボタンを表示しない（spec 035 SC-003）', () => {
+        // 所有者（canManage）であっても非公開なら表示しない
+        render(<DiveDetail dive={baseDive} canManage />);
+        expect(screen.queryByRole('link', { name: 'X で共有' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Facebook で共有' })).not.toBeInTheDocument();
     });
 
     it('講習ダイブのときはバッジを表示する', () => {

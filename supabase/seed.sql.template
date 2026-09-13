@@ -64,6 +64,7 @@ insert into auth.users (
         'last_name_romaji', 'Tanaka',
         'first_name_romaji', 'Taro',
         'nickname', 'たろう',
+        'handle', 'taro',
         'birth_on', '1990-05-15',
         'gender', 'male',
         'height_cm', '170',
@@ -135,6 +136,7 @@ insert into auth.users (
         'last_name_romaji', 'Unei',
         'first_name_romaji', 'Kanrisha',
         'nickname', 'admin',
+        'handle', 'admin-ops',
         'birth_on', '1990-01-01',
         'gender', 'unanswered'
     ),
@@ -162,6 +164,190 @@ insert into auth.identities (
 -- 管理者として登録（superadmin）
 insert into public.admin_users (id, display_name, role)
 values ('000000ad-0000-0000-0000-000000000001', '運営管理者', 'superadmin');
+
+-- ========================================
+-- 開発用の 2 人目テストユーザー（local development 専用）
+--   email   : buddy@example.com
+--   password: password123
+-- 公開ログの他ユーザー閲覧（021 / 033 FR-015 の E2E: tests/shops.spec.ts）で使用する。
+-- ========================================
+delete from auth.users where email = 'buddy@example.com';
+
+insert into auth.users (
+    instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    confirmation_token, email_change, email_change_token_new, recovery_token,
+    created_at, updated_at
+) values (
+    '00000000-0000-0000-0000-000000000000',
+    '000000bd-0000-0000-0000-000000000002',
+    'authenticated',
+    'authenticated',
+    'buddy@example.com',
+    crypt('password123', gen_salt('bf')),
+    now(),
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    jsonb_build_object(
+        'last_name', 'バディ',
+        'first_name', '太郎',
+        'last_name_romaji', 'Buddy',
+        'first_name_romaji', 'Taro',
+        'nickname', 'buddy-taro',
+        'handle', 'buddy-taro',
+        'birth_on', '1992-02-02',
+        'gender', 'unanswered'
+    ),
+    '', '', '', '',
+    now(), now()
+);
+
+insert into auth.identities (
+    id, user_id, identity_data, provider, provider_id,
+    last_sign_in_at, created_at, updated_at
+) values (
+    gen_random_uuid(),
+    '000000bd-0000-0000-0000-000000000002',
+    jsonb_build_object(
+        'sub', '000000bd-0000-0000-0000-000000000002',
+        'email', 'buddy@example.com',
+        'email_verified', true,
+        'phone_verified', false
+    ),
+    'email',
+    '000000bd-0000-0000-0000-000000000002',
+    now(), now(), now()
+);
+
+-- ========================================
+-- ニックネーム変更 E2E（034 US3 / tests/profile-url.spec.ts）専用ユーザー（local development 専用）
+--   email   : rename@example.com
+--   password: password123
+-- テスト中にニックネームを一時変更するため、他のテストはこのユーザーに依存しないこと
+-- （buddy@example.com を変更すると並列実行中の他テストと干渉する）。
+-- ========================================
+delete from auth.users where email = 'rename@example.com';
+
+insert into auth.users (
+    instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    confirmation_token, email_change, email_change_token_new, recovery_token,
+    created_at, updated_at
+) values (
+    '00000000-0000-0000-0000-000000000000',
+    '000000ce-0000-0000-0000-000000000003',
+    'authenticated',
+    'authenticated',
+    'rename@example.com',
+    crypt('password123', gen_salt('bf')),
+    now(),
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    jsonb_build_object(
+        'last_name', '改名',
+        'first_name', '三郎',
+        'last_name_romaji', 'Kaimei',
+        'first_name_romaji', 'Saburo',
+        'nickname', 'rename-saburo',
+        'handle', 'rename-saburo',
+        'birth_on', '1993-03-03',
+        'gender', 'unanswered'
+    ),
+    '', '', '', '',
+    now(), now()
+);
+
+insert into auth.identities (
+    id, user_id, identity_data, provider, provider_id,
+    last_sign_in_at, created_at, updated_at
+) values (
+    gen_random_uuid(),
+    '000000ce-0000-0000-0000-000000000003',
+    jsonb_build_object(
+        'sub', '000000ce-0000-0000-0000-000000000003',
+        'email', 'rename@example.com',
+        'email_verified', true,
+        'phone_verified', false
+    ),
+    'email',
+    '000000ce-0000-0000-0000-000000000003',
+    now(), now(), now()
+);
+
+-- ========================================
+-- デイリーボーナスモーダル E2E（036 / tests/daily-bonus-modal.spec.ts）専用ユーザー（local development 専用）
+--   email   : bonus@example.com
+--   password: password123
+-- このユーザーには当日分の daily_bonus を事前付与しない（初回ログインで付与が発生し
+-- 獲得モーダルが表示されることを検証するため）。他のテストはこのユーザーでログインしないこと。
+-- ========================================
+delete from auth.users where email = 'bonus@example.com';
+
+insert into auth.users (
+    instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    confirmation_token, email_change, email_change_token_new, recovery_token,
+    created_at, updated_at
+) values (
+    '00000000-0000-0000-0000-000000000000',
+    '000000b0-0000-0000-0000-000000000005',
+    'authenticated',
+    'authenticated',
+    'bonus@example.com',
+    crypt('password123', gen_salt('bf')),
+    now(),
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    jsonb_build_object(
+        'last_name', '賞与',
+        'first_name', '花子',
+        'last_name_romaji', 'Bonus',
+        'first_name_romaji', 'Hanako',
+        'nickname', 'bonus-hanako',
+        'handle', 'bonus-hanako',
+        'birth_on', '1994-04-04',
+        'gender', 'unanswered'
+    ),
+    '', '', '', '',
+    now(), now()
+);
+
+insert into auth.identities (
+    id, user_id, identity_data, provider, provider_id,
+    last_sign_in_at, created_at, updated_at
+) values (
+    gen_random_uuid(),
+    '000000b0-0000-0000-0000-000000000005',
+    jsonb_build_object(
+        'sub', '000000b0-0000-0000-0000-000000000005',
+        'email', 'bonus@example.com',
+        'email_verified', true,
+        'phone_verified', false
+    ),
+    'email',
+    '000000b0-0000-0000-0000-000000000005',
+    now(), now(), now()
+);
+
+-- ========================================
+-- ログ枠の追加付与（026）
+-- handle_new_user の初期枠 10 に加え、テストユーザーへ 20 枠を先に付与する。
+-- 以降の dives insert は consume_log_credit トリガーで 1 件 1 枠を消費するため、
+-- 付与より前に dives を投入すると seed が残枠不足で失敗しうる。順序を変えないこと
+-- ========================================
+select public.apply_credit_ledger_entry('${TEST_USER_ID}', 'initial_grant', 20);
+
+-- ========================================
+-- デイリーボーナスの当日分事前付与（036）
+-- 認証済みレイアウトは当日（JST）初アクセスで grant_daily_bonus を呼び、
+-- 付与が発生した訪問では獲得モーダルを表示する。E2E 用の既存ユーザーに
+-- 当日分を事前付与しておくことで、既存 E2E テストの初回ログインにモーダルが
+-- 被さって操作を妨害するのを防ぐ（specs/036 research.md R4）。
+-- モーダル表示の検証は bonus@example.com（事前付与なし）で行う。
+-- 注意: seed 実行日と E2E 実行日が JST でまたがると効果を失うため、
+-- E2E は make supabase-reset 直後に実行すること。
+-- ========================================
+select public.apply_credit_ledger_entry('${TEST_USER_ID}', 'daily_bonus', 1, (now() at time zone 'Asia/Tokyo')::date);
+select public.apply_credit_ledger_entry('000000ad-0000-0000-0000-000000000001', 'daily_bonus', 1, (now() at time zone 'Asia/Tokyo')::date);
+select public.apply_credit_ledger_entry('000000bd-0000-0000-0000-000000000002', 'daily_bonus', 1, (now() at time zone 'Asia/Tokyo')::date);
+select public.apply_credit_ledger_entry('000000ce-0000-0000-0000-000000000003', 'daily_bonus', 1, (now() at time zone 'Asia/Tokyo')::date);
 
 -- ========================================
 -- サンプルダイビングログ

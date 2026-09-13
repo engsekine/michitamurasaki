@@ -16,11 +16,13 @@ user-invocable: true
 
 ### 1. 変更内容の収集
 
+ベースブランチは [.claude/rules/diff-scope.md](../../rules/diff-scope.md) の「ベースブランチの検出」に従って検出する。PR の対象は**コミット済みの変更のみ**（未ステージ / ステージング済みは PR に含まれないため対象外）。
+
 ```bash
-git diff main...HEAD --stat       # 変更ファイル一覧
-git diff main...HEAD              # 差分詳細
-git log main..HEAD --oneline      # コミット一覧
-git branch --show-current         # 現在のブランチ名
+git diff <ベース>...HEAD --stat       # 変更ファイル一覧
+git diff <ベース>...HEAD              # 差分詳細
+git log <ベース>..HEAD --oneline      # コミット一覧
+git branch --show-current             # 現在のブランチ名
 ```
 
 差分がない場合は「PR対象の変更がありません」と出力して終了。
@@ -29,7 +31,7 @@ git branch --show-current         # 現在のブランチ名
 
 ### 2. 影響URLの特定
 
-`/check-diff-impact` スキルの SKILL.md を読み、その手順2「影響URLの特定」のロジックに従って影響URLを特定する（スキルを呼び出すのではなく、同じロジックを実行する）。
+`/check-diff-impact` スキルの SKILL.md を読み、**「影響URLの特定」節**（節番号ではなく見出し名で探す）のロジックに従って影響URLを特定する（スキルを呼び出すのではなく、同じロジックを実行する）。
 
 影響URLが1件以上ある場合は「動作確認用URL」セクションを**「概要」直後・「変更したこと／変更内容」の前**に挿入する（テンプレート使用時の「テンプレートに存在しないセクションは追加しない」ルールの例外として、このセクションは常に挿入する）。0件の場合はセクションごと省略する。
 
@@ -44,7 +46,7 @@ git branch --show-current         # 現在のブランチ名
 
 - 見出しレベル（`#` の数）とスペース数はテンプレート内の「概要」見出しと揃える（例: `##  概要` が 2 スペースなら `##  動作確認用URL` も 2 スペース）
 - URL 群に共通する文脈があれば見出しに括弧書きで補足する（例: `##  動作確認用URL（いずれも物件カードが表示されるページ）`）
-- ベース URL は `.claude/CLAUDE.md` に記載があればそれを使用する。記載がなければ `package.json` の `scripts.dev` からポートを検出し `http://localhost:<port>` を使用、それも見つからなければ `http://localhost:3000` を使用
+- ベース URL は `.claude/CLAUDE.md` に記載があればそれを使用する。記載がなければ**変更があったワークスペース**の `package.json` の `scripts.dev` からポートを検出し `http://localhost:<port>` を使用（service-front は `3000`、admin-front は `3001` がデフォルト）。両アプリに影響がある場合はアプリごとに URL を分けて列挙する
 
 ### 3. PR テンプレートの確認
 
