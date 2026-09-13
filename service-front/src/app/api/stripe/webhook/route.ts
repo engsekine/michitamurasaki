@@ -39,7 +39,10 @@ export async function POST(request: Request): Promise<Response> {
 
     try {
         switch (event.type) {
-            case 'checkout.session.completed': {
+            // 遅延決済（コンビニ払い・銀行振込等）は completed 時点では unpaid で届き、
+            // 入金後に async_payment_succeeded が来る。片方だけ処理すると「支払済みだが未付与」が固定化する
+            case 'checkout.session.completed':
+            case 'checkout.session.async_payment_succeeded': {
                 const result = await fulfillCheckoutSession(supabase, event.data.object);
                 if (!result.credited) console.warn(`[stripe webhook] 付与なし: ${result.reason}`);
                 break;

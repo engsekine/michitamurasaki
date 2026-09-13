@@ -3,10 +3,13 @@
 import { revalidatePath } from 'next/cache';
 
 import { requireAdmin } from '@/features/admin-auth';
+import { MFA_REMOVE_SUPERADMIN_ONLY_MESSAGE } from '@/features/users-admin/constants';
 import { recordAudit } from '@/shared/lib/audit/recordAudit';
 import { createAdminServiceClient } from '@/shared/lib/supabase/admin';
 import { createClient } from '@/shared/lib/supabase/server';
 import { type ActionResult, actionFailure, actionSuccess } from '@/shared/types/action-result';
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * 対象ユーザーの 2 要素認証要素をすべて解除する（023 / FR-016）。
@@ -14,9 +17,17 @@ import { type ActionResult, actionFailure, actionSuccess } from '@/shared/types/
  * 電話紛失・番号変更時のリカバリー手段。Supabase Admin API（service_role）で
  * MFA 要素を削除し、監査ログに記録する。解除後、当該ユーザーは 2 段階目なしで
  * ログインでき、必要に応じて電話番号を再登録できる。
+ *
+ * なぜ superadmin 限定か: 解除は対象アカウントの 2 段階目防御を無効化する操作であり、
+ * 一般 admin が（自分を含む）他の管理者・superadmin に対して実行できると、
+ * パスワードさえ入手すれば管理権限を丸ごと奪える経路になるため。
  */
 export const removeMfaFactor = async (userId: string): Promise<ActionResult> => {
     const admin = await requireAdmin();
+    if (admin.role !== 'superadmin') return actionFailure(MFA_REMOVE_SUPERADMIN_ONLY_MESSAGE);
+
+    /** Admin API へ渡す前に形式を検証する（不正値での API 呼び出し・revalidatePath への混入を防ぐ） */
+    if (!UUID_PATTERN.test(userId)) return actionFailure('対象ユーザーの指定が不正です');
 
     const service = createAdminServiceClient();
 

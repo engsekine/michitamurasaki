@@ -43,7 +43,7 @@ export default function DiveListScreen() {
     const opportunisticRefresh = useCallback(async () => {
         if (!userId) return;
         try {
-            const rows = await fetchDivesPage(null, 50);
+            const rows = await fetchDivesPage(userId, null, 50);
             const driver = await getDriver();
             await upsertCachedDives(
                 driver,

@@ -18,6 +18,7 @@ import type {
     TimelineItem,
     TimelinePage,
 } from '@/features/social/types';
+import { isSafeKeysetCursor } from '@/shared/lib/keyset-cursor';
 import { isUuid, normalizeHandle, profilePath } from '@/shared/lib/profile-path';
 import { createClient } from '@/shared/lib/supabase/server';
 
@@ -367,8 +368,11 @@ export const fetchUserPublicDives = async (
         .order('dive_date', { ascending: false })
         .order('id', { ascending: false })
         .limit(limit + 1);
-    if (cursor)
+    if (cursor) {
+        // クライアント由来のカーソルはフィルタ文字列へ補間するため、形式が不正なら空ページで打ち切る
+        if (!isSafeKeysetCursor({ ...cursor })) return { items: [], nextCursor: null };
         query = query.or(`dive_date.lt.${cursor.diveDate},and(dive_date.eq.${cursor.diveDate},id.lt.${cursor.id})`);
+    }
 
     const { data: rows, error } = await query;
     if (error) throw new Error(`公開ログの取得に失敗しました: ${error.message}`);
@@ -409,6 +413,8 @@ export const fetchLikedDives = async (
         .order('dive_id', { ascending: false })
         .limit(limit + 1);
     if (cursor) {
+        // クライアント由来のカーソルはフィルタ文字列へ補間するため、形式が不正なら空ページで打ち切る
+        if (!isSafeKeysetCursor({ ...cursor })) return { items: [], nextCursor: null };
         query = query.or(
             `created_at.lt.${cursor.likedAt},and(created_at.eq.${cursor.likedAt},dive_id.lt.${cursor.diveId})`,
         );
@@ -483,8 +489,11 @@ export const fetchTimeline = async (
         .order('dive_date', { ascending: false })
         .order('id', { ascending: false })
         .limit(limit + 1);
-    if (cursor)
+    if (cursor) {
+        // クライアント由来のカーソルはフィルタ文字列へ補間するため、形式が不正なら空ページで打ち切る
+        if (!isSafeKeysetCursor({ ...cursor })) return { items: [], nextCursor: null };
         query = query.or(`dive_date.lt.${cursor.diveDate},and(dive_date.eq.${cursor.diveDate},id.lt.${cursor.id})`);
+    }
 
     const { data: rows, error } = await query;
     if (error) throw new Error(`タイムラインの取得に失敗しました: ${error.message}`);

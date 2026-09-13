@@ -5,10 +5,11 @@ import { redirect } from 'next/navigation';
 
 import { NO_CREDIT_ACTION_CODE, NO_CREDIT_ERROR_DETAIL } from '@/features/credits/constants';
 import { buildDivePrefix, DIVE_PHOTOS_BUCKET, type PhotoKind } from '@/features/dives/lib/photoStorage';
-import type { DiveFormValues } from '@/features/dives/schemas/dive.schema';
+import { type DiveFormValues, diveSchema } from '@/features/dives/schemas/dive.schema';
 import { requireUser } from '@/shared/lib/auth';
 import { todayInJst } from '@/shared/lib/date';
 import { createClient } from '@/shared/lib/supabase/server';
+import { validateWithSchema } from '@/shared/lib/validation';
 import { type ActionResult, actionFailure, actionSuccess } from '@/shared/types/action-result';
 
 /** Postgres ユニーク制約違反のエラーコード */
@@ -196,13 +197,22 @@ const syncDiveBuddies = async (
 /** バディ同期に失敗したときにユーザーへ返す警告メッセージ */
 const BUDDY_SYNC_WARNING = '同行バディの保存に一部失敗しました。時間をおいて再度お試しください';
 
+/**
+ * ログを作成する。
+ * Server Action は任意クライアントから直接呼べるため、クライアントの yupResolver に依存せず
+ * DB 書き込み前に diveSchema でサーバー側再検証する（型不一致の payload による TypeError も防ぐ）。
+ */
 export const createDive = async (
-    input: DiveFormValues,
+    rawInput: DiveFormValues,
 ): Promise<ActionResult<{ id: string; buddyWarning?: string }>> => {
     const supabase = await createClient();
 
     const { user, failure } = await requireUser(supabase);
     if (failure) return failure;
+
+    const validated = await validateWithSchema(diveSchema, rawInput);
+    if (validated.error !== undefined) return actionFailure(validated.error);
+    const input: DiveFormValues = validated.values;
 
     const siteError = await validateDiveSite(supabase, input);
     if (siteError) return actionFailure(siteError);
@@ -297,12 +307,17 @@ export const createDiveFromPlan = async (
 
 export const updateDive = async (
     id: string,
-    input: DiveFormValues,
+    rawInput: DiveFormValues,
 ): Promise<ActionResult<{ buddyWarning?: string }>> => {
     const supabase = await createClient();
 
     const { user, failure } = await requireUser(supabase);
     if (failure) return failure;
+
+    // サーバー側再検証（createDive と同じ理由）
+    const validated = await validateWithSchema(diveSchema, rawInput);
+    if (validated.error !== undefined) return actionFailure(validated.error);
+    const input: DiveFormValues = validated.values;
 
     const siteError = await validateDiveSite(supabase, input);
     if (siteError) return actionFailure(siteError);

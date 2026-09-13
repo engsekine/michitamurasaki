@@ -13,7 +13,11 @@ vi.mock('@/shared/lib/supabase/admin', () => ({ createAdminServiceClient }));
 vi.mock('@/shared/lib/audit/recordAudit', () => ({ recordAudit }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
+import { MFA_REMOVE_SUPERADMIN_ONLY_MESSAGE } from '../constants';
 import { removeMfaFactor } from './actions';
+
+/** 対象ユーザー（UUID 形式でないと形式チェックで弾かれる） */
+const USER_ID = '0b8f4e2a-1111-4222-8333-444444444444';
 
 interface ServiceMockOptions {
     factors?: { id: string; status: string }[];
@@ -33,11 +37,34 @@ beforeEach(() => {
     createClient.mockReset();
     createAdminServiceClient.mockReset();
     recordAudit.mockReset();
-    requireAdmin.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    requireAdmin.mockResolvedValue({ id: 'admin-1', role: 'superadmin' });
     createClient.mockResolvedValue({});
 });
 
 describe('removeMfaFactor（FR-016）', () => {
+    it('一般 admin は実行できない（superadmin 限定。Admin API も呼ばない）', async () => {
+        requireAdmin.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+        const service = buildServiceMock();
+        createAdminServiceClient.mockReturnValue(service.client);
+
+        const result = await removeMfaFactor(USER_ID);
+
+        expect(result).toEqual({ success: false, error: MFA_REMOVE_SUPERADMIN_ONLY_MESSAGE });
+        expect(service.listFactors).not.toHaveBeenCalled();
+        expect(service.deleteFactor).not.toHaveBeenCalled();
+        expect(recordAudit).not.toHaveBeenCalled();
+    });
+
+    it('userId が UUID 形式でなければ Admin API を呼ばずに失敗を返す', async () => {
+        const service = buildServiceMock();
+        createAdminServiceClient.mockReturnValue(service.client);
+
+        const result = await removeMfaFactor('../admin');
+
+        expect(result.success).toBe(false);
+        expect(service.listFactors).not.toHaveBeenCalled();
+    });
+
     it('全 MFA 要素を削除し、監査ログを hard_delete で記録して成功を返す', async () => {
         const service = buildServiceMock({
             factors: [
@@ -47,16 +74,16 @@ describe('removeMfaFactor（FR-016）', () => {
         });
         createAdminServiceClient.mockReturnValue(service.client);
 
-        const result = await removeMfaFactor('user-1');
+        const result = await removeMfaFactor(USER_ID);
 
         expect(result).toEqual({ success: true });
         expect(service.deleteFactor).toHaveBeenCalledTimes(2);
-        expect(service.deleteFactor).toHaveBeenCalledWith({ id: 'factor-1', userId: 'user-1' });
-        expect(service.deleteFactor).toHaveBeenCalledWith({ id: 'factor-2', userId: 'user-1' });
+        expect(service.deleteFactor).toHaveBeenCalledWith({ id: 'factor-1', userId: USER_ID });
+        expect(service.deleteFactor).toHaveBeenCalledWith({ id: 'factor-2', userId: USER_ID });
         expect(recordAudit).toHaveBeenCalledWith(
             {},
             'admin-1',
-            expect.objectContaining({ action: 'hard_delete', targetTable: 'mfa_factors', targetId: 'user-1' }),
+            expect.objectContaining({ action: 'hard_delete', targetTable: 'mfa_factors', targetId: USER_ID }),
         );
     });
 
@@ -64,7 +91,7 @@ describe('removeMfaFactor（FR-016）', () => {
         const service = buildServiceMock({ factors: [] });
         createAdminServiceClient.mockReturnValue(service.client);
 
-        const result = await removeMfaFactor('user-1');
+        const result = await removeMfaFactor(USER_ID);
 
         expect(result.success).toBe(false);
         expect(service.deleteFactor).not.toHaveBeenCalled();
@@ -75,7 +102,7 @@ describe('removeMfaFactor（FR-016）', () => {
         const service = buildServiceMock({ listError: { message: 'boom' } });
         createAdminServiceClient.mockReturnValue(service.client);
 
-        const result = await removeMfaFactor('user-1');
+        const result = await removeMfaFactor(USER_ID);
 
         expect(result.success).toBe(false);
         expect(service.deleteFactor).not.toHaveBeenCalled();
@@ -85,7 +112,7 @@ describe('removeMfaFactor（FR-016）', () => {
         const service = buildServiceMock({ deleteError: { message: 'boom' } });
         createAdminServiceClient.mockReturnValue(service.client);
 
-        const result = await removeMfaFactor('user-1');
+        const result = await removeMfaFactor(USER_ID);
 
         expect(result.success).toBe(false);
         expect(recordAudit).not.toHaveBeenCalled();
@@ -107,7 +134,7 @@ describe('removeMfaFactor（FR-016）', () => {
         });
         createAdminServiceClient.mockReturnValue({ auth: { admin: { mfa: { listFactors, deleteFactor } } } });
 
-        const result = await removeMfaFactor('user-1');
+        const result = await removeMfaFactor(USER_ID);
 
         expect(result.success).toBe(false);
         /** 削除できた factor-1 のみ証跡として残す（factor-2 は削除失敗のため含めない） */
@@ -117,7 +144,7 @@ describe('removeMfaFactor（FR-016）', () => {
             expect.objectContaining({
                 action: 'hard_delete',
                 targetTable: 'mfa_factors',
-                targetId: 'user-1',
+                targetId: USER_ID,
                 changes: { removedFactorIds: ['factor-1'] },
             }),
         );
@@ -128,7 +155,7 @@ describe('removeMfaFactor（FR-016）', () => {
         createAdminServiceClient.mockReturnValue(service.client);
         recordAudit.mockRejectedValue(new Error('audit down'));
 
-        const result = await removeMfaFactor('user-1');
+        const result = await removeMfaFactor(USER_ID);
 
         expect(result.success).toBe(true);
     });
@@ -136,7 +163,7 @@ describe('removeMfaFactor（FR-016）', () => {
     it('未認証・非管理者は requireAdmin でリダイレクトされる（ここでは例外）', async () => {
         requireAdmin.mockRejectedValue(new Error('NEXT_REDIRECT:/login'));
 
-        await expect(removeMfaFactor('user-1')).rejects.toThrow('NEXT_REDIRECT:/login');
+        await expect(removeMfaFactor(USER_ID)).rejects.toThrow('NEXT_REDIRECT:/login');
         expect(createAdminServiceClient).not.toHaveBeenCalled();
     });
 });

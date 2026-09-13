@@ -43,8 +43,11 @@ jobs:
             # production ビルドは main からのみ（フィーチャーブランチからの誤ビルド防止 / deploy-prod と同方針）
             - name: Guard production branch
               if: ${{ inputs.profile == 'production' && github.ref != 'refs/heads/main' }}
+              # コンテキスト式を run に直接展開するとブランチ名経由のシェル注入になるため env 経由で参照する
+              env:
+                  CURRENT_REF: ${{ github.ref }}
               run: |
-                  echo "::error::production プロファイルは main ブランチからのみ実行できます（現在: ${{ github.ref }}）"
+                  echo "::error::production プロファイルは main ブランチからのみ実行できます（現在: ${CURRENT_REF}）"
                   exit 1
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
@@ -60,11 +63,15 @@ jobs:
             - run: npm ci
             - name: Kick EAS Build
               working-directory: mobile
+              # 入力値は run に直接展開せず env 経由で参照する（式展開によるシェル注入防止）
+              env:
+                  EAS_PLATFORM: ${{ inputs.platform }}
+                  EAS_PROFILE: ${{ inputs.profile }}
               run: |
-                  eas build --platform "${{ inputs.platform }}" --profile "${{ inputs.profile }}" --non-interactive --no-wait
+                  eas build --platform "$EAS_PLATFORM" --profile "$EAS_PROFILE" --non-interactive --no-wait
                   {
                       echo "### EAS Build を投入しました"
-                      echo "- platform: ${{ inputs.platform }}"
-                      echo "- profile: ${{ inputs.profile }}"
+                      echo "- platform: ${EAS_PLATFORM}"
+                      echo "- profile: ${EAS_PROFILE}"
                       echo "- 進捗・成果物: expo.dev のプロジェクト → Builds ページで確認"
                   } >> "$GITHUB_STEP_SUMMARY"

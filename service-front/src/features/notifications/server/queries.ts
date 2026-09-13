@@ -7,6 +7,7 @@ import {
 } from '@/features/notifications/constants';
 import { getOverhaulDueDate, isPlanDueToday } from '@/features/notifications/lib/reminderDue';
 import { todayInJst } from '@/shared/lib/date';
+import { isSafeKeysetCursor } from '@/shared/lib/keyset-cursor';
 import { createClient } from '@/shared/lib/supabase/server';
 
 type Client = Awaited<ReturnType<typeof createClient>>;
@@ -80,6 +81,8 @@ export const listNotifications = async (
         .order('id', { ascending: false })
         .limit(NOTIFICATIONS_PAGE_SIZE + 1);
     if (cursor) {
+        // クライアント由来のカーソルはフィルタ文字列へ補間するため、形式が不正なら空ページで打ち切る
+        if (!isSafeKeysetCursor({ ...cursor })) return { items: [], nextCursor: null };
         query = query.or(
             `occurred_at.lt.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.lt.${cursor.id})`,
         );

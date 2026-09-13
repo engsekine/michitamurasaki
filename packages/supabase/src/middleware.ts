@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 
-import { AUTH_COOKIE_NAME } from './constants';
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from './constants';
 import type { Database } from './types';
 
 /**
@@ -25,7 +25,7 @@ export const updateSession = async (request: NextRequest, cookieName: string = A
     }
 
     const supabase = createServerClient<Database>(url, anonKey, {
-        cookieOptions: { name: cookieName },
+        cookieOptions: { ...AUTH_COOKIE_OPTIONS, name: cookieName },
         cookies: {
             getAll: () => request.cookies.getAll(),
             setAll: (cookiesToSet: { name: string; value: string; options: Record<string, unknown> }[]) => {

@@ -162,10 +162,20 @@ describe('fetchDiveListPage', () => {
 
     it('cursor 指定時は (dive_date, id) の複合カーソル条件を付与する', async () => {
         const { client, builder } = createMockClient({ data: [], error: null });
+        const id = '0b8f4e2a-1111-4222-8333-444444444444';
 
-        await fetchDiveListPage(client, { cursor: { diveDate: '2026-06-01', id: 'd9' } });
+        await fetchDiveListPage(client, { cursor: { diveDate: '2026-06-01', id } });
 
-        expect(builder.or).toHaveBeenCalledWith('dive_date.lt.2026-06-01,and(dive_date.eq.2026-06-01,id.lt.d9)');
+        expect(builder.or).toHaveBeenCalledWith(`dive_date.lt.2026-06-01,and(dive_date.eq.2026-06-01,id.lt.${id})`);
+    });
+
+    it('形式が不正な cursor（PostgREST フィルタ構文の注入）はクエリせず空ページを返す', async () => {
+        const { client, builder } = createMockClient({ data: [], error: null });
+
+        const page = await fetchDiveListPage(client, { cursor: { diveDate: '2026-06-01', id: 'x),user_id.neq.0' } });
+
+        expect(page).toEqual({ items: [], nextCursor: null });
+        expect(builder.or).not.toHaveBeenCalled();
     });
 
     it('limit を超える行が返ったら limit 件に切り詰めて nextCursor を返す', async () => {

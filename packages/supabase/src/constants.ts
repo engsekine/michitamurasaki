@@ -22,3 +22,18 @@ export const AUTH_COOKIE_NAME = 'sb-divelog-auth-token';
  * クライアント生成時に明示的に注入する（FR-005）。
  */
 export const ADMIN_AUTH_COOKIE_NAME = 'sb-divelog-admin-auth-token';
+
+/**
+ * 認証セッション Cookie の共通属性。
+ *
+ * なぜ: @supabase/ssr の既定は `secure` を付けないため、HTTPS 運用でも
+ * `http://` への 1 リクエスト（手打ち・キャプティブポータル等）で access_token /
+ * refresh_token が平文送信され得る。本番では `Secure` を必須にする。
+ * ローカル開発（`next dev` の http://localhost）では付けない（付けると Cookie が保存されない）。
+ * `httpOnly` はブラウザクライアントが Cookie を読む @supabase/ssr の設計上 false のまま。
+ */
+export const AUTH_COOKIE_OPTIONS = {
+    path: '/',
+    sameSite: 'lax',
+    secure: process.env['NODE_ENV'] === 'production',
+} as const;

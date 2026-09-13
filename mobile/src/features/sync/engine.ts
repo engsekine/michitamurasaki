@@ -76,12 +76,22 @@ export const runSyncQueue = async (): Promise<void> => {
 
             const values = JSON.parse(row.payload) as DiveFormValues;
             const insertRow = toDiveInsertRow(values, { id: row.id, userId });
-            let result: { thrown: boolean; errorCode: string | null; errorMessage: string | null };
+            let result: {
+                thrown: boolean;
+                errorCode: string | null;
+                errorMessage: string | null;
+                errorDetails: string | null;
+            };
             try {
                 const { error } = await supabase.from('dives').insert(insertRow);
-                result = { thrown: false, errorCode: error?.code ?? null, errorMessage: error?.message ?? null };
+                result = {
+                    thrown: false,
+                    errorCode: error?.code ?? null,
+                    errorMessage: error?.message ?? null,
+                    errorDetails: error?.details ?? null,
+                };
             } catch (exception) {
-                result = { thrown: true, errorCode: null, errorMessage: String(exception) };
+                result = { thrown: true, errorCode: null, errorMessage: String(exception), errorDetails: null };
             }
 
             const outcome = classifyTransferResult(result);

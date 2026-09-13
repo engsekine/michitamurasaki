@@ -38,7 +38,8 @@ export const sendInquiryNotifications = async (values: ContactFormValues): Promi
         from,
         to: notifyTo,
         replyTo: values.email,
-        subject: `【お問い合わせ】${categoryLabel} - ${values.name} 様`,
+        // 件名に改行を含めない（メールヘッダ注入の防止。name は yup で長さのみ検証しているため）
+        subject: `【お問い合わせ】${categoryLabel} - ${values.name.replace(/[\r\n]+/g, ' ')} 様`,
         html: notifyHtml,
         text: notifyText,
     });

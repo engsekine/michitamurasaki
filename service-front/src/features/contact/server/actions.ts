@@ -74,7 +74,11 @@ export const submitInquiry = async (input: ContactFormValues): Promise<ActionRes
     } catch (mailError) {
         console.error('[submitInquiry] mail error:', mailError);
         if (inquiryId) {
-            const { error: discardError } = await supabase.rpc('discard_recent_inquiry', { p_id: inquiryId });
+            // 送信者メールを添えて「同一メールの直近行」のみ取り消せるようにする（ID だけで他人の行を消せない）
+            const { error: discardError } = await supabase.rpc('discard_recent_inquiry', {
+                p_id: inquiryId,
+                p_email: values.email,
+            });
             if (discardError) console.error('[submitInquiry] discard error:', discardError);
         }
         return actionFailure('送信に失敗しました。時間をおいて再度お試しください');

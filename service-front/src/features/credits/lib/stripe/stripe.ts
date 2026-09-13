@@ -35,20 +35,21 @@ export const createServiceRoleClient = (): ServiceRoleClient => {
 
 interface FulfillResult {
     credited: boolean;
-    reason?: 'unpaid' | 'missing_user' | 'already_credited';
+    reason?: 'unpaid' | 'missing_user' | 'already_credited' | 'unknown_pack' | 'amount_mismatch';
 }
 
-/**
- * 複数パック化（2026-07 価格改定）以前に作成された Checkout Session の内容。
- * 旧セッションは metadata.pack_id を持たないため、当時の単一パック定義で付与する
- */
-const LEGACY_PACK = { quantity: 10, amountJpy: 300 } as const;
+/** 決済通貨（Checkout Session 作成時と一致させる） */
+const CHECKOUT_CURRENCY = 'jpy';
 
 /**
- * checkout.session.completed の枠付与（026 / FR-005・007）。
+ * checkout.session.completed / async_payment_succeeded の枠付与（026 / FR-005・007）。
  * 冪等性は DB 側（session_id ユニーク + credited_at 条件付き更新）が担保するため、
  * 重複 webhook でも安全に何度でも呼べる。DB エラーは throw し、
- * route が 500 を返して Stripe の自動リトライに委ねる
+ * route が 500 を返して Stripe の自動リトライに委ねる。
+ *
+ * 付与量は Stripe が検証した Session（metadata.pack_id と実請求額）から決める。
+ * pending 行は authenticated が RPC 直叩きで任意の数量を植えられるため、
+ * DB 行のスナップショットを真実にせず、Stripe の値と一致しないものは付与しない。
  */
 export const fulfillCheckoutSession = async (
     supabase: ServiceRoleClient,
@@ -59,12 +60,26 @@ export const fulfillCheckoutSession = async (
     const userId = session.client_reference_id;
     if (!userId) return { credited: false, reason: 'missing_user' };
 
+    const pack = findLogCreditPack(session.metadata?.['pack_id'] ?? '');
+    if (!pack) {
+        console.error(`[fulfillCheckoutSession] 不明な pack_id: session=${session.id}`);
+        return { credited: false, reason: 'unknown_pack' };
+    }
+
+    // 実際に請求された金額・通貨・モードがパック定義と一致することを確認する（改ざん・別経路の Checkout を排除）
+    if (
+        session.mode !== 'payment' ||
+        session.currency !== CHECKOUT_CURRENCY ||
+        session.amount_total !== pack.amountJpy
+    ) {
+        console.error(
+            `[fulfillCheckoutSession] 金額不一致: session=${session.id} pack=${pack.id} expected=${pack.amountJpy} actual=${session.amount_total} currency=${session.currency} mode=${session.mode}`,
+        );
+        return { credited: false, reason: 'amount_mismatch' };
+    }
+
     const paymentIntentId =
         typeof session.payment_intent === 'string' ? session.payment_intent : (session.payment_intent?.id ?? '');
-
-    // p_quantity / p_amount_jpy は pending レコードが無い場合の自己修復作成でのみ使われる
-    // （complete_purchase は既存レコードのスナップショット値を優先して付与する）
-    const pack = findLogCreditPack(session.metadata?.['pack_id'] ?? '') ?? LEGACY_PACK;
 
     const { data: credited, error } = await supabase.rpc('complete_purchase', {
         p_session_id: session.id,

@@ -1,6 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 
-import { AUTH_COOKIE_NAME } from './constants';
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from './constants';
 import type { Database } from './types';
 
 /**
@@ -21,6 +21,6 @@ export const createClient = (cookieName: string = AUTH_COOKIE_NAME) => {
     }
 
     return createBrowserClient<Database>(url, anonKey, {
-        cookieOptions: { name: cookieName },
+        cookieOptions: { ...AUTH_COOKIE_OPTIONS, name: cookieName },
     });
 };

@@ -112,6 +112,25 @@ describe('addDivePhoto', () => {
         expect(revalidatePath).toHaveBeenCalledWith('/dives/d1');
     });
 
+    it('キャプションが上限を超える場合は原本を取得せずに失敗する（サーバー側再検証）', async () => {
+        const from = vi.fn(() => chain({ data: { id: 'd1' }, error: null }));
+        const storage = storageMock();
+        createClient.mockResolvedValue({ auth: authUser({ id: 'u1' }), from, storage });
+
+        const result = await addDivePhoto({ diveId: 'd1', origPath: 'u1/d1/orig/x.jpg', caption: 'あ'.repeat(201) });
+
+        expect(result).toEqual({ success: false, error: 'キャプションは 200 文字以内で入力してください' });
+        expect(storage._download).not.toHaveBeenCalled();
+    });
+
+    it('型不一致の payload（diveId が数値）は TypeError にならず失敗を返す', async () => {
+        createClient.mockResolvedValue({ auth: authUser({ id: 'u1' }), from: vi.fn(), storage: storageMock() });
+
+        const result = await addDivePhoto({ diveId: 1 as unknown as string, origPath: 'u1/d1/orig/x.jpg' });
+
+        expect(result).toEqual({ success: false, error: '不正なリクエストです' });
+    });
+
     it('本人 / dive 配下でない origPath は失敗', async () => {
         const from = vi.fn(() => chain({ data: { id: 'd1' }, error: null }));
         createClient.mockResolvedValue({ auth: authUser({ id: 'u1' }), from, storage: storageMock() });
