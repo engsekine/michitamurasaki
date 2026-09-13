@@ -1,7 +1,11 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page, test } from '@playwright/test';
-
+import { expect, test } from '@playwright/test';
+import { loginWithPassword, NO_AUTH } from '../shared/auth';
+import { SERVICE_USER } from '../shared/users';
 import { presetConsent } from './a11y/_helpers';
+
+/** このファイルは未認証状態から始める（project 既定のログイン済み storageState を打ち消す） */
+test.use({ storageState: NO_AUTH });
 
 /**
  * ランディングページ（031）の E2E 検証。quickstart.md のシナリオに対応する。
@@ -11,19 +15,6 @@ import { presetConsent } from './a11y/_helpers';
  * a11y（axe）の全ページスイープは tests/a11y/public-pages.spec.ts が /lp も含めて担保するが、
  * SC-006 のトレーサビリティのため本ファイルでも /lp 単体の axe スキャンを持つ。
  */
-
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    // ログイン後の遷移先は TOP ダッシュボード（/）。/dives だった頃の前提を更新
-    await page.waitForURL((url) => url.pathname === '/');
-};
 
 test.beforeEach(async ({ context }) => {
     await presetConsent(context);
@@ -72,7 +63,7 @@ test('未認証でトップにアクセスするとログイン画面へリダ�
 });
 
 test('認証済みでも /lp はリダイレクトされずそのまま閲覧できる', async ({ page }) => {
-    await login(page);
+    await loginWithPassword(page, SERVICE_USER);
     const response = await page.goto('/lp');
     expect(response?.status()).toBe(200);
     await expect(page).toHaveURL(/\/lp$/);

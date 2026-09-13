@@ -10,23 +10,11 @@ import { presetConsent } from './a11y/_helpers';
  * ガード（FR-007 / FR-009）の網羅は Server Action の Vitest で担保する。
  */
 
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
 test.describe.configure({ mode: 'serial' });
 
 test.beforeEach(async ({ context }) => {
     await presetConsent(context);
 });
-
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
 
 /** 予定を 1 件作成し、作成後の詳細ページ（/plans/{id}）で止まる */
 const createPlan = async (page: Page, plannedOn: string, location: string) => {
@@ -56,8 +44,9 @@ const deletePlansByLocation = async (page: Page, location: string) => {
 };
 
 test('S1〜S3: 準備完了 → 忘れ物確認 → 解除の一連フロー', async ({ page }) => {
-    await login(page);
-
+    // 予定作成 → 複数回の Server Action（チェック保存）→ 再読み込みを繰り返す長いシナリオ。
+    // 並列実行中は dev サーバーのオンデマンドコンパイルで往復が延びるため、標準の 3 倍のタイムアウトにする
+    test.slow();
     const location = '037 忘れ物確認の検証';
     // 失敗残骸を自己回復してから開始
     await deletePlansByLocation(page, location);
@@ -96,9 +85,11 @@ test('S1〜S3: 準備完了 → 忘れ物確認 → 解除の一連フロー', a
     for (let i = 0; i < totalCount; i++) {
         const checkbox = page.getByRole('checkbox').nth(i);
         if (!(await checkbox.isChecked())) {
+            // 直前の Server Action の反映中は disabled になるため、操作可能になるのを待ってから押す
+            await expect(checkbox).toBeEnabled();
             await checkbox.click();
-            // Server Action → refresh の反映を待つ（次の操作の安定化）
-            await expect(checkbox).toBeChecked();
+            // Server Action → refresh の反映を待つ（次の操作の安定化）。並列実行中は往復が 5 秒を超えることがある
+            await expect(checkbox).toBeChecked({ timeout: 15_000 });
         }
     }
     await expect(page.getByRole('status')).toHaveText(/忘れ物なし/);

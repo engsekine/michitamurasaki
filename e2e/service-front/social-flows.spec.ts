@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import { presetConsent } from './a11y/_helpers';
+import { NO_AUTH } from '../shared/auth';
 
 /**
  * spec 021 quickstart S1 / S2 の E2E 検証（T052 の自動化分）。
@@ -10,24 +11,12 @@ import { presetConsent } from './a11y/_helpers';
  * ローカル実 DB での RLS/トリガ検証とフォロー UI の単体/Story で担保する。
  */
 
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
 // ダイブ番号の一意制約衝突を避けるため直列実行する
 test.describe.configure({ mode: 'serial' });
 
 test.beforeEach(async ({ context }) => {
     await presetConsent(context);
 });
-
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
 
 const createDive = async (page: Page, location: string, diveNumber: number) => {
     await page.goto('/dives/new');
@@ -46,7 +35,6 @@ const deleteCurrentDive = async (page: Page) => {
 };
 
 test('S1: フリーテキストのバディを記録し詳細で表示できる', async ({ page }) => {
-    await login(page);
     await createDive(page, 'S1 バディ記録の検証', 9101);
 
     // バディ（フリーテキスト）を 1 件追加して保存
@@ -66,7 +54,6 @@ test('S2: 公開で共有リンク(/dives/[id])が出て直接コピーできる
     page,
     browser,
 }) => {
-    await login(page);
     await createDive(page, 'S2 公開制御の検証', 9102);
     await page.getByRole('button', { name: '作成する' }).click();
     await page.waitForURL(/\/dives\/[0-9a-f-]+$/);
@@ -78,8 +65,9 @@ test('S2: 公開で共有リンク(/dives/[id])が出て直接コピーできる
     await expect(shareInput).toBeVisible();
     await expect(shareInput).toHaveValue(new RegExp(`${divePath}$`));
 
-    // 未ログイン（匿名）で /dives/[id] を開くと閲覧できず /login へ誘導される（匿名共有ページは廃止）
-    const anonContext = await browser.newContext();
+    // 未ログイン（匿名）で /dives/[id] を開くと閲覧できず /login へ誘導される（匿名共有ページは廃止）。
+    // project 既定のログイン済み storageState を継承しないよう明示する
+    const anonContext = await browser.newContext({ storageState: NO_AUTH });
     try {
         const anonPage = await anonContext.newPage();
         await anonPage.goto(divePath);
@@ -98,8 +86,6 @@ test('S2: 公開で共有リンク(/dives/[id])が出て直接コピーできる
 });
 
 test('S7: ユーザー検索から相手を見つけてフォロー/解除できる', async ({ page }) => {
-    await login(page);
-
     // ユーザー ID（handle）で検索 → seed の admin（handle: admin-ops）がヒットする
     await page.goto('/users/search');
     await page.getByRole('searchbox', { name: 'ユーザーIDで探す' }).fill('admin');

@@ -1,6 +1,11 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+import { NO_AUTH } from '../../shared/auth';
+
+/** このファイルは未認証状態から始める（project 既定のログイン済み storageState を打ち消す） */
+test.use({ storageState: NO_AUTH });
+
 /**
  * 管理画面ログインページの a11y 検証（015-admin-panel / WCAG 2.1 AA）。
  * 未認証でアクセスできる唯一のページ。フォームのラベル関連付け・エラー表示（role=alert）を含めて検査する。

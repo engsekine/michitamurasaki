@@ -1,7 +1,11 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page, test } from '@playwright/test';
-
+import { expect, test } from '@playwright/test';
+import { loginWithPassword, NO_AUTH } from '../shared/auth';
+import { SERVICE_BONUS_USER, SERVICE_USER } from '../shared/users';
 import { presetConsent } from './a11y/_helpers';
+
+/** このファイルは未認証状態から始める（project 既定のログイン済み storageState を打ち消す） */
+test.use({ storageState: NO_AUTH });
 
 /**
  * spec 036（デイリーボーナス獲得モーダル）の E2E 検証。
@@ -12,10 +16,6 @@ import { presetConsent } from './a11y/_helpers';
  * 同日中の再実行にはふたたび db reset が必要。
  * 他の seed ユーザー（test@ など）は当日分を事前付与済みでモーダルは出ない。
  */
-
-const BONUS_EMAIL = 'bonus@example.com';
-const TEST_EMAIL = 'test@example.com';
-const PASSWORD = 'password123';
 
 // bonus@example.com の付与状態を共有するため直列実行する
 test.describe.configure({ mode: 'serial' });
@@ -28,16 +28,8 @@ test.beforeEach(async ({ context }) => {
     await presetConsent(context);
 });
 
-const login = async (page: Page, email: string) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(email);
-    await page.getByLabel('パスワード').fill(PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
-
 test('US1+US2: 当日初回の訪問でモーダルが表示され、ログ作成へ進め、再表示されない', async ({ page }) => {
-    await login(page, BONUS_EMAIL);
+    await loginWithPassword(page, SERVICE_BONUS_USER);
 
     // 付与は認証必須ページ（(authenticated) グループ）への当日初アクセスで発生する。
     // TOP（/）はグループ外のため、/dives へ遷移して付与とモーダル表示を確認する
@@ -72,7 +64,7 @@ test('US1+US2: 当日初回の訪問でモーダルが表示され、ログ作�
 });
 
 test('事前付与済みユーザー（既存 E2E ユーザー）にはモーダルが表示されない', async ({ page }) => {
-    await login(page, TEST_EMAIL);
+    await loginWithPassword(page, SERVICE_USER);
 
     // 認証必須ページを開いても、当日分は seed で事前付与済みのためモーダルは出ない
     await page.goto('/dives');

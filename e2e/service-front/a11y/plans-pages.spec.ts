@@ -8,10 +8,6 @@ test.beforeEach(async ({ context }) => {
     await presetConsent(context);
 });
 
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
 const expectNoViolations = async (page: Page) => {
     await page.waitForLoadState('networkidle');
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
@@ -19,13 +15,6 @@ const expectNoViolations = async (page: Page) => {
 };
 
 test('/plans 系 3 画面 - WCAG 2.1 AA 違反なし（要認証）', async ({ page }) => {
-    // ログイン
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-
     // 一覧
     await page.goto('/plans');
     await expectNoViolations(page);

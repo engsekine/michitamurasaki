@@ -8,20 +8,8 @@ test.beforeEach(async ({ context }) => {
     await presetConsent(context);
 });
 
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
 /** seed の別ユーザー（プロフィール / フォロー UI の表示対象） */
 const OTHER_USER_ID = '000000ad-0000-0000-0000-000000000001';
-
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
 
 const expectNoViolations = async (page: Page) => {
     await page.waitForLoadState('networkidle');
@@ -35,8 +23,6 @@ const expectNoViolations = async (page: Page) => {
  * いずれも WCAG 2.1 AA 違反がないことを確認する。
  */
 test('ログ作成フォーム（バディ欄）・詳細（公開トグル）- WCAG 2.1 AA 違反なし（要認証）', async ({ page }) => {
-    await login(page);
-
     // 作成フォーム: DiveBuddyField が描画され、バディ行を追加できる
     await page.goto('/dives/new');
     await expect(page.getByRole('group', { name: '同行したバディ' })).toBeVisible();
@@ -71,8 +57,6 @@ test('ログ作成フォーム（バディ欄）・詳細（公開トグル）- 
  * spec 021 US3/US4。空状態を含め WCAG 2.1 AA 違反がないことを確認する。
  */
 test('タイムライン・プロフィール・フォロー一覧 - WCAG 2.1 AA 違反なし（要認証）', async ({ page }) => {
-    await login(page);
-
     // TOP（タイムラインセクション）
     await page.goto('/');
     await expectNoViolations(page);

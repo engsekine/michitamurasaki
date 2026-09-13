@@ -15,27 +15,13 @@ test.beforeEach(async ({ context }) => {
     await presetConsent(context);
 });
 
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
 const expectNoViolations = async (page: Page) => {
     await page.waitForLoadState('networkidle');
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(results.violations).toEqual([]);
 };
 
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
-
 test('/settings/log-credits - 購入カードと残枠を表示し WCAG 2.1 AA 違反なし（要認証）', async ({ page }) => {
-    await login(page);
-
     await page.goto('/settings/log-credits');
     await expect(page.getByRole('heading', { name: 'ログ枠の購入' })).toBeVisible();
     await expect(page.getByText('残りログ枠')).toBeVisible();
@@ -60,8 +46,6 @@ test('/settings/log-credits - 購入カードと残枠を表示し WCAG 2.1 AA �
 });
 
 test('ログ一覧・新規作成に残枠バッジが表示される（FR-013）', async ({ page }) => {
-    await login(page);
-
     await page.goto('/dives');
     await expect(page.getByText('残りログ枠')).toBeVisible();
 

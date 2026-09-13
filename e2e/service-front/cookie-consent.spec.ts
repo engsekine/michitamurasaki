@@ -1,18 +1,11 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { loginWithPassword, NO_AUTH } from '../shared/auth';
+import { SERVICE_USER } from '../shared/users';
 
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
+/** このファイルは未認証状態から始める（project 既定のログイン済み storageState を打ち消す） */
+test.use({ storageState: NO_AUTH });
 
 const BANNER = { name: 'Cookie の利用について' } as const;
-
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
 
 test.beforeEach(async ({ context }) => {
     await context.clearCookies();
@@ -62,9 +55,9 @@ test('選択済みでもフッターの「Cookie 設定」でバナーを再表�
 
 // US1 (FR-010 / G1): ログイン済みでもバナーが機能する
 test('ログイン済み状態でも未選択ならバナーが表示され同意できる', async ({ page, context }) => {
-    await login(page);
+    await loginWithPassword(page, SERVICE_USER);
     await context.clearCookies(); // セッションも消えるため再ログイン
-    await login(page);
+    await loginWithPassword(page, SERVICE_USER);
 
     await page.goto('/dives');
     await expect(page.getByRole('region', BANNER)).toBeVisible();
@@ -74,7 +67,7 @@ test('ログイン済み状態でも未選択ならバナーが表示され同�
 
 // US2 (FR-008 / G2): 拒否しても必須＝認証セッションは維持される
 test('バナーで拒否しても認証セッションが維持され /dives にアクセスできる', async ({ page }) => {
-    await login(page);
+    await loginWithPassword(page, SERVICE_USER);
     await page.goto('/dives');
     await page.getByRole('button', { name: '拒否する' }).click();
 

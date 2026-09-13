@@ -1,5 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { NO_AUTH } from '../../shared/auth';
+
+/** このファイルは未認証状態から始める（project 既定のログイン済み storageState を打ち消す） */
+test.use({ storageState: NO_AUTH });
 
 /**
  * Cookie 同意バナー表示状態の a11y（017-cookie-consent / SC-005）。

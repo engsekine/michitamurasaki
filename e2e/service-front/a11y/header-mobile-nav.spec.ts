@@ -1,7 +1,11 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-
+import { loginWithPassword, NO_AUTH } from '../../shared/auth';
+import { SERVICE_USER } from '../../shared/users';
 import { presetConsent } from './_helpers';
+
+/** このファイルは未認証状態から始める（project 既定のログイン済み storageState を打ち消す） */
+test.use({ storageState: NO_AUTH });
 
 /**
  * HeaderMobileNav（SP ハンバーガーメニュー）の a11y テスト。
@@ -10,10 +14,6 @@ import { presetConsent } from './_helpers';
  * `md:hidden` クラスが付いたトリガーは通常スキャンでは display:none となり axe の解析対象外になる。
  * ここではモバイルビューポートを明示的に指定し、Sheet を開いた状態で axe スキャンを行う。
  */
-
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
 
 test.beforeEach(async ({ context }) => {
     // Cookie 同意バナーが axe スキャンに干渉しないようプリセット（017-cookie-consent）
@@ -61,12 +61,7 @@ test('HeaderMobileNav - 認証済みページでの Sheet 開状態 - WCAG 2.1 A
     // 認証済みページでのナビゲーション項目が公開ページと異なる場合に備えて検証
     await page.setViewportSize({ width: 375, height: 812 });
 
-    // ログイン
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
+    await loginWithPassword(page, SERVICE_USER);
 
     // 認証済みページ（ダッシュボード）でモバイルメニューを開く
     await page.goto('/');

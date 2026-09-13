@@ -1,5 +1,5 @@
-import { expect, type Page, test } from '@playwright/test';
-
+import { expect, test } from '@playwright/test';
+import { NO_AUTH } from '../shared/auth';
 import { presetConsent } from './a11y/_helpers';
 
 /** Cookie 同意バナーが操作に重ならないようプリセット（017-cookie-consent） */
@@ -7,25 +7,12 @@ test.beforeEach(async ({ context }) => {
     await presetConsent(context);
 });
 
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
-
 test('申し込みシート: 名前を付けて保存 → 一覧から選択で全項目復元 → 削除（FR-010）', async ({ page }) => {
     // 繰り返し実行しても前回分と衝突しないようシート名を一意にする
     const sheetName = `E2E テスト ${Date.now()}`;
     // 削除確認の confirm ダイアログは常に承認する
     page.on('dialog', (dialog) => void dialog.accept());
 
-    await login(page);
     await page.goto('/application-sheet');
 
     // 手入力 + レンタル選択（スナップショットに含まれることを確認するため）
@@ -62,7 +49,6 @@ test('申し込みシート: 名前を付けて保存 → 一覧から選択で�
 test('申し込みシート: 基本情報と経験を保存すると新規シート作成時に自動入力される', async ({ page }) => {
     const phone = `090${String(Date.now()).slice(-8)}`;
 
-    await login(page);
     await page.goto('/application-sheet');
 
     // 基本情報 + 経験を入力して専用ボタンで保存
@@ -81,16 +67,19 @@ test('申し込みシート: 基本情報と経験を保存すると新規シー
 });
 
 test('申し込みシート: TOP ダッシュボードの導線から遷移できる（FR-001）', async ({ page }) => {
-    await login(page);
-
     await page.goto('/');
     await page.getByRole('link', { name: '申し込みシートを作る' }).click();
     await page.waitForURL(/\/application-sheet/);
     await expect(page.getByRole('heading', { name: '申し込みシート', level: 1 })).toBeVisible();
 });
 
-test('申し込みシート: 未認証アクセスは /login へリダイレクトされる', async ({ page }) => {
-    await page.goto('/application-sheet');
-    await page.waitForURL(/\/login/);
-    await expect(page.getByLabel('メールアドレス')).toBeVisible();
+test.describe('未認証', () => {
+    // 認証境界の検証なので、project 既定のログイン済み storageState を打ち消す
+    test.use({ storageState: NO_AUTH });
+
+    test('申し込みシート: 未認証アクセスは /login へリダイレクトされる', async ({ page }) => {
+        await page.goto('/application-sheet');
+        await page.waitForURL(/\/login/);
+        await expect(page.getByLabel('メールアドレス')).toBeVisible();
+    });
 });

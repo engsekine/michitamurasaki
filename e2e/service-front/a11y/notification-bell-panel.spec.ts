@@ -11,29 +11,20 @@ import { presetConsent } from './_helpers';
  * ここでは Sheet を明示的に開いた状態で axe スキャンを行う（前例: header-mobile-nav.spec.ts）。
  */
 
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
 test.beforeEach(async ({ context }) => {
     // Cookie 同意バナーが axe スキャンに干渉しないようプリセット（017-cookie-consent）
     await presetConsent(context);
 });
 
-/** ログインして TOP（/）へ遷移する共通ヘルパー */
-const loginAndGoTop = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
+/** TOP（/）へ遷移して描画完了を待つ共通ヘルパー（ログインは setup project 済み） */
+const goTop = async (page: Page) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 };
 
 test('NotificationBellPanel - Sheet 開状態 - WCAG 2.1 AA 違反なし（要認証）', async ({ page }) => {
     // seed.sql に通知データがない場合は「通知はありません」の空状態でスキャンされる
-    await loginAndGoTop(page);
+    await goTop(page);
 
     // ベルボタンをクリックして Sheet（role="dialog"）を開く
     await page.getByRole('button', { name: /通知/ }).click();

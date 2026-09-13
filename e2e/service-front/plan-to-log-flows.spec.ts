@@ -11,24 +11,12 @@ import { presetConsent } from './a11y/_helpers';
  * S5（部分失敗）/ S6（重複防止）は Server Action の Vitest で担保する。
  */
 
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
 // ダイブ番号の一意制約衝突を避けるため直列実行する
 test.describe.configure({ mode: 'serial' });
 
 test.beforeEach(async ({ context }) => {
     await presetConsent(context);
 });
-
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
 
 /** 予定を 1 件作成し、作成後の詳細ページ（/plans/{id}）で止まる */
 const createPlan = async (page: Page, plannedOn: string, location: string) => {
@@ -62,8 +50,6 @@ const deletePlansByLocation = async (page: Page, location: string) => {
 };
 
 test('S1: 当日以前の予定をログへ移動できる（引き継ぎ + 予定削除）', async ({ page }) => {
-    await login(page);
-
     const location = 'S1 予定→ログ移動の検証';
     await createPlan(page, '2024-06-30', location);
 
@@ -100,8 +86,6 @@ test('S1: 当日以前の予定をログへ移動できる（引き継ぎ + 予�
 });
 
 test('S3: 必須の潜水データ未入力では移動が確定しない', async ({ page }) => {
-    await login(page);
-
     const location = 'S3 必須未入力の検証';
     await createPlan(page, '2024-06-30', location);
     await page.getByRole('link', { name: `${location}の予定をログに記録する` }).click();
@@ -120,8 +104,6 @@ test('S3: 必須の潜水データ未入力では移動が確定しない', asyn
 });
 
 test('S2: 未来日の予定には移動導線が出ない（一覧・詳細）', async ({ page }) => {
-    await login(page);
-
     const location = 'S2 未来日ゲートの検証';
     await createPlan(page, '2099-12-01', location);
 

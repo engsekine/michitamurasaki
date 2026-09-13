@@ -10,24 +10,12 @@ import { presetConsent } from './a11y/_helpers';
  * Instagram は Web 共有インテント非対応のため提供しない（2026-07-16 改定）。
  */
 
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
 // ダイブ番号の一意制約衝突を避けるため直列実行する（番号は 92xx を使用し social-flows と重ねない）
 test.describe.configure({ mode: 'serial' });
 
 test.beforeEach(async ({ context }) => {
     await presetConsent(context);
 });
-
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
 
 /** X 共有アンカーの href から intent パラメータを取り出す */
 const xIntentParams = async (page: Page) => {
@@ -37,8 +25,6 @@ const xIntentParams = async (page: Page) => {
 };
 
 test('US1: 公開ログ詳細で SNS 共有ボタンが動作し、非公開では表示されない', async ({ page }) => {
-    await login(page);
-
     // ログ作成（非公開のまま）
     await page.goto('/dives/new');
     await page.getByLabel(/潜水日/).fill('2026-04-21');
@@ -81,8 +67,6 @@ test('US1: 公開ログ詳細で SNS 共有ボタンが動作し、非公開で�
 });
 
 test('US2: 自分・他人のプロフィールで SNS 共有ボタンが表示されプロフィール URL を共有できる', async ({ page }) => {
-    await login(page);
-
     // 自分のプロフィール（seed の test@example.com は handle: taro）
     await page.goto('/users/taro');
     await expect(page.getByRole('link', { name: 'X で共有' })).toBeVisible();

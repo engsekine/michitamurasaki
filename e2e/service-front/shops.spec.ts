@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
-
+import { loginWithPassword, NO_AUTH } from '../shared/auth';
+import { SERVICE_BUDDY_USER } from '../shared/users';
 import { presetConsent } from './a11y/_helpers';
 
 /**
@@ -7,18 +8,6 @@ import { presetConsent } from './a11y/_helpers';
  * - US1: 登録 → 一覧 → 詳細 → 編集 → 削除の CRUD 一式・バリデーション・認証ガード
  * a11y（axe）は tests/a11y/shops-pages.spec.ts が担保する。
  */
-
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
-
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
 
 /** テスト内で作成したショップを詳細ページから削除する（後始末） */
 const deleteShopFromDetail = async (page: Page) => {
@@ -32,17 +21,21 @@ test.beforeEach(async ({ context }) => {
 });
 
 // US2（認証ガード・spec 033 と proxy の契約）
-test('未認証で /shops にアクセスするとログイン画面へリダイレクトされる', async ({ page }) => {
-    await page.goto('/shops');
-    await page.waitForURL(/\/login/);
-    await expect(page).toHaveURL(/\/login/);
+test.describe('未認証', () => {
+    // 認証境界の検証なので、project 既定のログイン済み storageState を打ち消す
+    test.use({ storageState: NO_AUTH });
+
+    test('未認証で /shops にアクセスするとログイン画面へリダイレクトされる', async ({ page }) => {
+        await page.goto('/shops');
+        await page.waitForURL(/\/login/);
+        await expect(page).toHaveURL(/\/login/);
+    });
 });
 
 // US1: 登録 → 一覧 → 詳細 → 編集 → 削除（quickstart シナリオ 1）
 test('ショップの登録・一覧・詳細・編集・削除が一連で行える', async ({ page }) => {
     // 失敗時の残骸と衝突しないよう実行ごとに一意な名前を使う
     const CRUD_SHOP_NAME = `E2E テストショップ_${Date.now()}`;
-    await login(page);
 
     // ヘッダーナビから一覧へ
     await page.goto('/shops');
@@ -83,7 +76,6 @@ test('ショップの登録・一覧・詳細・編集・削除が一連で行�
 });
 
 test('ショップ名が空のまま登録するとエラーが表示され登録されない', async ({ page }) => {
-    await login(page);
     await page.goto('/shops/new');
 
     await page.getByRole('button', { name: '登録する' }).click();
@@ -93,7 +85,6 @@ test('ショップ名が空のまま登録するとエラーが表示され登�
 });
 
 test('不正な URL 形式ではエラーが表示され登録されない', async ({ page }) => {
-    await login(page);
     await page.goto('/shops/new');
 
     await page.getByLabel(/ショップ名/).fill('URL 検証ショップ');
@@ -105,7 +96,8 @@ test('不正な URL 形式ではエラーが表示され登録されない', asy
 });
 
 test('ヘッダーナビに「ショップ」導線が表示される', async ({ page }) => {
-    await login(page);
+    // ログインは setup project 済み。ヘッダーを確認するために TOP を開く
+    await page.goto('/');
     await expect(page.getByRole('link', { name: 'ショップ', exact: true })).toHaveAttribute('href', '/shops');
 });
 
@@ -113,7 +105,6 @@ test('ヘッダーナビに「ショップ」導線が表示される', async ({
 // GOOGLE_MAPS_API_KEY はサーバー側 env のためテストプロセスから参照できず、
 // キー未設定環境では「地図を表示できない」メッセージ側に倒れる。どちらかが必ず表示されることを検証する。
 test('住所を入力して確定すると、地図プレビューまたは「表示できない」メッセージが自動で出る', async ({ page }) => {
-    await login(page);
     await page.goto('/shops/new');
 
     await page.getByLabel(/住所/).fill('静岡県伊東市富戸');
@@ -130,16 +121,15 @@ test('住所を入力して確定すると、地図プレビューまたは「�
     await expect(unavailable).toHaveCount(0);
 });
 
-/** 2 人目のローカル開発専用テストユーザー（公開ビュー検証用） */
-const BUDDY_EMAIL = 'buddy@example.com';
-
 // US2: 紐付け → 詳細表示 → 逆引き → 公開ビュー非表示 → 削除で紐付けのみ解除（quickstart シナリオ 3〜5）
 test('予定・ログ・シートへの紐付けと、ショップ削除時の解除・公開ビュー非表示が機能する', async ({ page, browser }) => {
+    // ショップ・予定・ログ・シートの作成と別ユーザーでの閲覧を 1 本で通す長いシナリオ。
+    // 並列実行中は dev サーバーのオンデマンドコンパイルで各遷移が延びるため、標準の 3 倍のタイムアウトにする
+    test.slow();
     // 失敗時の残骸と衝突しないよう実行ごとに一意な名前を使う（selectOption の label 一致を一意にする）
     const SHOP_NAME = `紐付けテストショップ_${Date.now()}`;
     // ダイブ番号はユーザー内一意のため、失敗残骸と衝突しない値を実行ごとに採る
     const DIVE_NUMBER = String(9000 + (Date.now() % 999));
-    await login(page);
 
     // ショップを登録
     await page.goto('/shops/new');
@@ -197,14 +187,11 @@ test('予定・ログ・シートへの紐付けと、ショップ削除時の�
     await page.getByRole('switch', { name: 'このログを公開する' }).click();
     await expect(page.getByRole('switch', { name: 'このログを公開する' })).toHaveAttribute('aria-checked', 'true');
 
-    const buddyContext = await browser.newContext();
+    // 別ユーザーでログインするため、project 既定のログイン済み storageState を継承しない
+    const buddyContext = await browser.newContext({ storageState: NO_AUTH });
     const buddyPage = await buddyContext.newPage();
     await presetConsent(buddyContext);
-    await buddyPage.goto('/login');
-    await buddyPage.getByLabel('メールアドレス').fill(BUDDY_EMAIL);
-    await buddyPage.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await buddyPage.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await buddyPage.waitForURL((url) => url.pathname === '/');
+    await loginWithPassword(buddyPage, SERVICE_BUDDY_USER);
     await buddyPage.goto(diveUrl);
     // 公開ログ自体は閲覧できるが、ショップ情報は一切表示されない
     await expect(buddyPage.getByRole('heading', { name: /紐付けテストログ/ })).toBeVisible();

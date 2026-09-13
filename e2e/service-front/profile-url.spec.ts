@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
-
+import { loginWithPassword, NO_AUTH } from '../shared/auth';
+import { SERVICE_RENAME_USER } from '../shared/users';
 import { presetConsent } from './a11y/_helpers';
 
 /**
@@ -10,23 +11,12 @@ import { presetConsent } from './a11y/_helpers';
  */
 
 /** supabase/seed.sql のローカル開発専用テストユーザー（handle: taro / nickname: たろう） */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
 /** 2 人目のテストユーザー（固定 uuid / handle: buddy-taro） */
 const BUDDY_ID = '000000bd-0000-0000-0000-000000000002';
 const BUDDY_HANDLE = 'buddy-taro';
 
-const login = async (page: Page) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
-};
-
-test.beforeEach(async ({ context, page }) => {
+test.beforeEach(async ({ context }) => {
     await presetConsent(context);
-    await login(page);
 });
 
 test('ユーザー ID の URL でプロフィールが表示される（表示名はニックネームのまま）', async ({ page }) => {
@@ -36,6 +26,8 @@ test('ユーザー ID の URL でプロフィールが表示される（表示�
 });
 
 test('ヘッダーのマイプロフィールからユーザー ID の URL で遷移する', async ({ page }) => {
+    // ログインは setup project 済み。ヘッダー操作の起点として TOP を開く
+    await page.goto('/');
     await page.getByRole('button', { name: 'アカウントメニューを開く' }).click();
     await page.getByRole('link', { name: /マイプロフィール/ }).click();
 
@@ -76,9 +68,6 @@ test('内部 ID（uuid）形式の URL はユーザー ID の URL へ転送さ�
     await page.waitForURL((url) => url.pathname === `/users/${BUDDY_HANDLE}/followers`);
 });
 
-// シナリオ 3: ユーザー ID の変更（US3）。
-// 並列実行中の他テスト（buddy-taro 依存）と干渉しないよう、リネーム専用ユーザーで実施し最後に戻す
-const RENAME_EMAIL = 'rename@example.com';
 const RENAME_ID = '000000ce-0000-0000-0000-000000000003';
 const RENAME_HANDLE = 'rename-saburo';
 
@@ -94,14 +83,11 @@ const changeHandle = async (page: Page, handle: string) => {
 };
 
 test('ユーザー ID の変更で URL が追随し、旧 ID は無効・uuid URL は転送される（US3）', async ({ browser }) => {
-    const context = await browser.newContext();
+    // 別ユーザーでログインするため、project 既定のログイン済み storageState を継承しない
+    const context = await browser.newContext({ storageState: NO_AUTH });
     const page = await context.newPage();
     await presetConsent(context);
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(RENAME_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
+    await loginWithPassword(page, SERVICE_RENAME_USER);
 
     const NEW_HANDLE = 'rename-shiro';
     await changeHandle(page, NEW_HANDLE);

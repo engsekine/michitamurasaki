@@ -1,16 +1,16 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-
+import { loginWithPassword, NO_AUTH } from '../../shared/auth';
+import { SERVICE_USER } from '../../shared/users';
 import { presetConsent } from './_helpers';
+
+/** このファイルは未認証状態から始める（project 既定のログイン済み storageState を打ち消す） */
+test.use({ storageState: NO_AUTH });
 
 /** a11y スイープでバナーが重ならないよう同意済み Cookie をプリセット（017-cookie-consent） */
 test.beforeEach(async ({ context }) => {
     await presetConsent(context);
 });
-
-/** supabase/seed.sql のローカル開発専用テストユーザー */
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
 
 /**
  * 使い方ページ（030-usage-guide）の a11y / 公開性検証。
@@ -57,11 +57,7 @@ test('使い方ページ - 登録導線から新規登録画面へ遷移でき�
 });
 
 test('使い方ページ - ログイン済みでも同一コンテンツが表示される（FR-001）', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByLabel('メールアドレス').fill(TEST_EMAIL);
-    await page.getByLabel('パスワード').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-    await page.waitForURL((url) => url.pathname === '/');
+    await loginWithPassword(page, SERVICE_USER);
 
     await page.goto('/guide');
     await expect(page).toHaveURL(/\/guide$/);
