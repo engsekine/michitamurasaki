@@ -3,14 +3,13 @@
 import { revalidatePath } from 'next/cache';
 
 import { requireAdmin } from '@/features/admin-auth';
+import { MFA_REMOVE_SUPERADMIN_ONLY_MESSAGE } from '@/features/users-admin/constants';
 import { recordAudit } from '@/shared/lib/audit/recordAudit';
 import { createAdminServiceClient } from '@/shared/lib/supabase/admin';
 import { createClient } from '@/shared/lib/supabase/server';
 import { type ActionResult, actionFailure, actionSuccess } from '@/shared/types/action-result';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export const MFA_REMOVE_SUPERADMIN_ONLY_MESSAGE = '2 要素認証の解除は上位管理者のみ実行できます';
 
 /**
  * 対象ユーザーの 2 要素認証要素をすべて解除する（023 / FR-016）。

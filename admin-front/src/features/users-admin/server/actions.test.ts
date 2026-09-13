@@ -13,7 +13,8 @@ vi.mock('@/shared/lib/supabase/admin', () => ({ createAdminServiceClient }));
 vi.mock('@/shared/lib/audit/recordAudit', () => ({ recordAudit }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
-import { MFA_REMOVE_SUPERADMIN_ONLY_MESSAGE, removeMfaFactor } from './actions';
+import { MFA_REMOVE_SUPERADMIN_ONLY_MESSAGE } from '../constants';
+import { removeMfaFactor } from './actions';
 
 /** 対象ユーザー（UUID 形式でないと形式チェックで弾かれる） */
 const USER_ID = '0b8f4e2a-1111-4222-8333-444444444444';

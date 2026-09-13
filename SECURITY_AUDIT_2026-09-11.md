@@ -218,3 +218,4 @@ nonce ベース CSP（proxy で nonce 生成 → `<Script nonce>`）への移行
 3. 2 要素認証を有効化している管理者は、admin-front ログイン後に `/login/verify` で SMS コード入力が必要になる
 4. 本番の Cookie に `Secure` が付くため、TLS 終端の無い平文 HTTP 公開ではログインできない
 5. Stripe の webhook イベントに `checkout.session.async_payment_succeeded` を購読に追加する（遅延決済を使う場合）
+6. Vercel の 2 プロジェクトは Git 連携の自動デプロイを使わない（`service-front/vercel.json` / `admin-front/vercel.json` の `git.deploymentEnabled: false` に加え、ダッシュボードの Settings → Git でリポジトリを Disconnect する）。デプロイは Actions の `Deploy (staging / production)` を手動実行する
