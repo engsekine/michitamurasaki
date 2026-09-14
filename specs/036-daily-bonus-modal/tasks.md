@@ -121,6 +121,6 @@ Task: "supabase/seed.sql.template に事前付与 + bonus ユーザー追加（T
 ### Notes
 
 - 各タスク（または論理的なまとまり）ごとにコミットする（`feat(036):` / `test(036):` プレフィックス）
-- マイグレーション適用・シード反映には `make supabase-reset` が必要（T006）。E2E は reset 直後に実行する
+- マイグレーション適用・シード反映には `make supabase-reset` が必要（T006）。モーダル表示の E2E は `beforeAll` で `bonus@example.com` の当日分を取り消すため、同日中の再実行に reset は不要
 - モーダル表示 E2E（T012）は付与の冪等性により同日中の再実行に reset が必要（data-model.md 注意点）
 - 026 の付与ルール自体（1 日 1 枠・JST・冪等）には一切手を入れない（FR-007）

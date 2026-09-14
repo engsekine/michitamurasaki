@@ -273,7 +273,7 @@ insert into auth.identities (
 );
 
 -- ========================================
--- デイリーボーナスモーダル E2E（036 / tests/daily-bonus-modal.spec.ts）専用ユーザー（local development 専用）
+-- デイリーボーナスモーダル E2E（036 / e2e/service-front/daily-bonus-modal/）専用ユーザー（local development 専用）
 --   email   : bonus@example.com
 --   password: password123
 -- このユーザーには当日分の daily_bonus を事前付与しない（初回ログインで付与が発生し

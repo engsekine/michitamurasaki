@@ -146,8 +146,8 @@ npm run dev:https
 - `npm run test` - Jestユニットテスト
 - `npm run test:watch` - テストウォッチモード
 - `npm run test:coverage` - カバレッジ生成
-- `npm run test:e2e` - Playwright E2Eテスト
-- `npm run test:all` - 全テスト実行
+- `npm run test:all` - 単体 + Storybook テスト
+- E2E（Playwright）はアプリから独立したルートの [`e2e/`](../e2e/README.md) ワークスペースに移行した。ルートで `make e2e` / `npm run test --workspace e2e`
 
 ### Storybook
 - `npm run storybook` - Storybook起動
