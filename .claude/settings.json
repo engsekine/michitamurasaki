@@ -91,6 +91,10 @@
                     {
                         "type": "command",
                         "command": "bash .claude/hooks/suggest-spec-sync.sh"
+                    },
+                    {
+                        "type": "command",
+                        "command": "bash .claude/hooks/suggest-e2e-changelog.sh"
                     }
                 ]
             }

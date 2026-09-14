@@ -68,6 +68,14 @@
 
 `PostToolUse` hook（`.claude/hooks/suggest-test-update.sh`）が編集を検知して該当ファイルを列挙してくれるので、そのリマインダーが見えたら無視せず確認する。
 
+## E2E テストの変更管理（e2e/ ワークスペース）
+
+E2E（Playwright）の spec は **1 テスト 1 フォルダ**（`e2e/<app>/<name>/<name>.spec.ts` + `spec.md` + `changelog.md`）で管理する。詳細は [e2e/README.md](../e2e/README.md) の「フォルダ構成と変更管理」を参照。
+
+- spec.ts を変更したら **同じコミットで** 同フォルダの `changelog.md` に 1 行追加する。シナリオ・前提が変わったら `spec.md` も同期する
+- 新規テストは 3 ファイルを揃えてから書く。`test` / `expect` は `e2e/shared/test`（fixture 入り）から import し、axe 検証は `e2e/shared/a11y` の `expectNoViolations` を使う
+- `PostToolUse` hook（`.claude/hooks/suggest-e2e-changelog.sh`）が spec.ts の編集を検知してリマインダーを出すので、見えたら無視せず対応する
+
 ## 仕様書同期ルール（コード変更時）
 
 コード（特に schema・component・migration・route）を編集した場合、`specs/` 配下の関連仕様書（spec-kit 形式）に **必ず同期確認をかける**。実装が真実なので、ズレを見つけたら仕様書側を実装に合わせて更新する。
