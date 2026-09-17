@@ -73,7 +73,14 @@ specs/028-deploy-pipeline/
 └── deploy-prod.yml         # ★新規: on push main → 承認ゲートジョブ → _deploy.yml を environment=production で呼ぶ
 
 readme.md                   # ★変更: 「デプロイ」章を追加（全体像・シークレット表・初期セットアップ・トラブルシューティング）
+
+service-front/src/proxy.ts                          # ★変更: stg の Basic 認証（BASIC_AUTH_* が両方あるときのみ）と本番以外の X-Robots-Tag: noindex
+service-front/src/shared/lib/previewProtection/     # ★新規: 上記の実装（requireBasicAuth / applyNoIndexHeader）
+admin-front/src/proxy.ts                            # ★変更: 同上（免除パスなし）
+admin-front/src/shared/lib/previewProtection/       # ★新規: service-front と同構成
 ```
+
+**stg の閲覧制限**: stg は Preview デプロイのため Vercel が `*.vercel.app` に `X-Robots-Tag: noindex` を自動付与するが、人の閲覧は制限されない。両アプリの `proxy.ts` に Basic 認証を置き、資格情報（`BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD`）を Vercel の Preview スコープにだけ登録することで「stg だけ閉じる・prod とローカルは未設定で無効」を実現する。Stripe webhook はサーバー間通信で資格情報を付けられないため免除する（署名検証で保護）。独自ドメインを Preview に割り当てると Vercel の自動 noindex が外れるため、`VERCEL_ENV` が `production` 以外ではアプリ側でも同ヘッダーを付ける。
 
 **Structure Decision**: デプロイは「別ワークフロー」というユーザー指示に従い、既存 CI と完全分離した 3 ファイル構成にする。stg / prod の差分（トリガーブランチ・環境名・承認の有無）以外のロジック重複を避けるため、実体は reusable workflow `_deploy.yml` に一本化。`_` プレフィックスで「直接トリガーされない内部ワークフロー」であることを示す。README は「入口はルート・詳細は各サービス」の既存方針に対し、デプロイは 3 サービス横断の関心事のため**ルート readme に章を新設**する（各サービス README からは参照リンク）。
 

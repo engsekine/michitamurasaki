@@ -206,6 +206,8 @@ GitHub リポジトリの **Settings > Environments** に 3 つの環境を作�
 
 アプリの環境変数（Supabase URL / Stripe キー等）は GitHub ではなく **Vercel の Environment Variables**（Preview = stg / Production = prod のスコープ別）に設定します。変数の一覧は [specs/028-deploy-pipeline/contracts/secrets-and-envs.md](specs/028-deploy-pipeline/contracts/secrets-and-envs.md) を参照してください。
 
+stg の閲覧を制限したい場合は、Preview スコープにだけ `BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD` を登録すると両アプリの `src/proxy.ts` が Basic 認証を要求します（prod・ローカルは未設定のため無効。詳細は [DEPLOY_STG.md](DEPLOY_STG.md) の「stg の閲覧制限」）。
+
 ### 初期セットアップ（一度だけ）
 
 1. **Supabase**: stg / prod の 2 プロジェクトを作成し、Reference ID・DB パスワード・API キーを控える。Auth の Site URL / Redirect URLs に各環境の URL を登録（`supabase config push` は使わない・手動運用）

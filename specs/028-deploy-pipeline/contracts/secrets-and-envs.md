@@ -41,6 +41,7 @@ Preview スコープ = stg、Production スコープ = prod として**別値**�
 | `STRIPE_SECRET_KEY` | **テストモード** `sk_test_...` | **本番モード** `sk_live_...` |
 | `STRIPE_WEBHOOK_SECRET` | stg エンドポイント登録時の `whsec_...` | prod 同（下記） |
 | メール送信系（`RESEND_API_KEY` 等） | stg 用（または未設定） | 本番用 |
+| `BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD` | stg 閲覧用の ID / パスワード（任意。両方揃うと `src/proxy.ts` が Basic 認証を要求。`/api/stripe/webhook` は免除） | **未設定**（設定すると本番全体が閉じる） |
 
 > 実装時に `service-front/.env.example` の全変数と突合し、漏れがないことを確認する（tasks で検証タスク化）。
 
@@ -51,6 +52,7 @@ Preview スコープ = stg、Production スコープ = prod として**別値**�
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | stg の値 | prod の値 |
 | `SUPABASE_SERVICE_ROLE_KEY` | stg の service_role key | prod の同 key |
 | `NEXT_PUBLIC_ADMIN_SITE_URL` | stg 固定 URL | 本番 URL |
+| `BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD` | stg 閲覧用の ID / パスワード（任意。両方揃うと `src/proxy.ts` が Basic 認証を要求） | **未設定**（設定すると本番全体が閉じる） |
 
 ## 外部サービス側の付随設定（初期セットアップに含める）
 
