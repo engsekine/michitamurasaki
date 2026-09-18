@@ -1,0 +1,42 @@
+# prod 環境（Supabase 本番プロジェクト）向けの設定差分
+#
+# 役割・使い方は config.staging.toml のヘッダーを参照。
+# 本番は `supabase/scripts/build-remote-config.sh production` で結合し、
+# Deploy (production) ワークフローの承認ゲート通過後に `supabase config push` される。
+#
+# 注意:
+#   - REPLACE_ME_ が残っていると build-remote-config.sh が失敗してデプロイを止める（誤った URL の反映防止）
+#   - ここに書いた値は Dashboard での手動変更より優先され、次のデプロイで上書きされる（ファイルが正）
+#   - 新しい TOML テーブルは必ず `[remotes.production.` で始める
+
+[remotes.production]
+# 本番プロジェクトの Reference ID（Dashboard → Project Settings → General → Project ID）。
+# GitHub の `production` Environment secret SUPABASE_PROJECT_REF と同じ値にする。
+project_id = "REPLACE_ME_PROD_PROJECT_REF"
+
+[remotes.production.auth]
+# service-front の本番 URL（Vercel Production スコープの NEXT_PUBLIC_SITE_URL と揃える）
+site_url = "https://REPLACE_ME_PROD_SERVICE_FRONT_DOMAIN"
+# 本番は固定ドメインのみ許可する（Preview 用ワイルドカードは入れない）
+additional_redirect_urls = [
+    "https://REPLACE_ME_PROD_SERVICE_FRONT_DOMAIN/**",
+    "https://REPLACE_ME_PROD_ADMIN_FRONT_DOMAIN/**",
+]
+
+[remotes.production.auth.rate_limit]
+# Resend 経由の確認メール・パスワードリセット等の上限（1 時間あたり）。
+# 利用者数に応じて見直す。無制限にはしない（メール爆撃対策 / specs/023）
+email_sent = 100
+
+[remotes.production.auth.email.smtp]
+# 本番は常に Resend で実送信する。RESEND_API_KEY / CONTACT_MAIL_FROM は `production` Environment secret で注入する
+enabled = true
+
+[remotes.production.auth.external.google]
+# 本番では必ず nonce チェックを有効にする（セキュリティ監査 2026-07-02 / specs/016-google-login）
+skip_nonce_check = false
+
+# 本番のみ DB への非 SSL 接続を拒否したい場合は有効化する（Supabase Pro 以上）。
+# 有効化前に Vercel からの接続が SSL であることを確認すること。
+# [remotes.production.db.ssl_enforcement]
+# enabled = true

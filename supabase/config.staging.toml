@@ -1,0 +1,47 @@
+# stg 環境（Supabase stg プロジェクト）向けの設定差分
+#
+# なぜこのファイルがあるか:
+#   `config.toml` はローカルスタック用の値（localhost の URL・nonce チェック省略など）を含むため、
+#   そのまま `supabase config push` するとリモートを壊す。環境ごとの差分をこのファイルに分離し、
+#   ベース（config.toml）の共通設定（パスワード要件・メール確認・日本語テンプレート等）は継承する。
+#
+# 使い方:
+#   Supabase CLI は `supabase/config.toml` という固定名しか読まない。
+#   `supabase/scripts/build-remote-config.sh staging` がこのファイルを config.toml の末尾に結合し、
+#   `supabase link` 先の Reference ID と `project_id` が一致した remote の値が push 時に上書き適用される。
+#   デプロイワークフロー（.github/workflows/_deploy.yml）が自動で実行する。
+#
+# ここに書くもの / 書かないもの:
+#   - 書く: ベースと値が異なる項目だけ（URL・レート制限・ローカル用回避策の無効化）
+#   - 書かない: シークレット（env() で注入する）、ローカルと同じ値（ベースから継承される）
+#   - 新しい TOML テーブルは必ず `[remotes.staging.` で始める（ベースの `[auth]` 等と重複するとパースエラー）
+
+[remotes.staging]
+# stg プロジェクトの Reference ID（Dashboard → Project Settings → General → Project ID）。
+# Secret ではないのでコミットしてよい。GitHub Secret SUPABASE_PROJECT_REF と同じ値にする。
+project_id = "REPLACE_ME_STG_PROJECT_REF"
+
+[remotes.staging.auth]
+# service-front の stg 固定 URL（Vercel の NEXT_PUBLIC_SITE_URL と揃える）
+site_url = "https://diving-log-stg.vercel.app"
+# ログイン後の戻り先として許可する URL。`/**` でパス全体を包含する
+# （メールリンク・Google OAuth の戻り先 /api/auth/callback もここに含まれる）。
+# Vercel の Preview 一時 URL からもログインしたい場合は "https://*-<team-slug>.vercel.app/**" を追加する。
+additional_redirect_urls = [
+    "https://diving-log-stg.vercel.app/**",
+    "https://diving-log-admin-stg.vercel.app/**",
+]
+
+[remotes.staging.auth.rate_limit]
+# ベースの 2 通/時はローカル（Mailpit）前提の値。stg は Resend 経由で動作確認するため引き上げる
+email_sent = 30
+
+[remotes.staging.auth.email.smtp]
+# stg は常に Resend で実送信する（ベースは env(SMTP_ENABLED) でローカルの ON/OFF を切り替えている）。
+# host / port / user / pass / sender_name はベースから継承。pass の RESEND_API_KEY は CI の Secret で注入する。
+enabled = true
+
+[remotes.staging.auth.external.google]
+# ベースの skip_nonce_check = true はローカルで Google ログインするための回避策。
+# リモートはブラウザ経由で nonce が通るため不要で、外すと OIDC のリプレイ攻撃耐性が落ちる（specs/016-google-login）。
+skip_nonce_check = false

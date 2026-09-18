@@ -167,7 +167,7 @@ Actions > Deploy (staging)    > Run workflow（develop を選択）: stg へ反�
 Actions > Deploy (production) > Run workflow（main を選択）   : 承認者の承認 1 回 → prod へ反映
 
 各デプロイの流れ（_deploy.yml）:
-  migrate（supabase db push）──成功後──▶ service-front / admin-front を並列デプロイ（Vercel）
+  migrate（supabase config push → db push）──成功後──▶ service-front / admin-front を並列デプロイ（Vercel）
   ※ マイグレーションが失敗したらアプリは反映されない（新アプリ + 旧スキーマの不整合防止）
 ```
 
@@ -204,13 +204,54 @@ GitHub リポジトリの **Settings > Environments** に 3 つの環境を作�
 | `SUPABASE_DB_PASSWORD` | `db push` の接続 | プロジェクト作成時の DB パスワード（stg / prod で別値） | 同上 |
 | `STG_ALIAS_SERVICE_FRONT` / `STG_ALIAS_ADMIN_FRONT` | stg 固定 URL | 任意のドメイン | **`staging` のみ** |
 
-アプリの環境変数（Supabase URL / Stripe キー等）は GitHub ではなく **Vercel の Environment Variables**（Preview = stg / Production = prod のスコープ別）に設定します。変数の一覧は [specs/028-deploy-pipeline/contracts/secrets-and-envs.md](specs/028-deploy-pipeline/contracts/secrets-and-envs.md) を参照してください。
+加えて、`migrate` ジョブの `supabase config push` が `supabase/config.toml` の `env(...)` を解決するために以下を設定します（ローカルの `supabase/.env` と同名。未登録だと空文字で Supabase に反映され、該当機能が動かない）:
+
+| シークレット名 | 用途 | 取得元 | 必須 |
+|---------------|------|--------|:---:|
+| `RESEND_API_KEY` | 認証メール（確認・リセット）の SMTP 送信 | Resend > API Keys | ✓ |
+| `CONTACT_MAIL_FROM` | 認証メールの送信元アドレス | Resend でドメイン検証済みのアドレス | ✓ |
+| `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET` | Google ログイン | Google Cloud Console > OAuth 2.0 クライアント | Google ログインを使う場合 |
+| `SUPABASE_AUTH_SMS_TWILIO_ACCOUNT_SID` / `_MESSAGE_SERVICE_SID` / `_AUTH_TOKEN` | SMS 2 要素認証 | Twilio Console | SMS 2FA を使う場合 |
+
+### 必要な環境変数（Vercel Environment Variables）
+
+アプリが実行時・ビルド時に読む値は GitHub ではなく **Vercel の各プロジェクト > Settings > Environment Variables** に設定します。登録時に **Preview（= stg）か Production（= prod）のどちらか片方だけ**にチェックを入れ、値は環境ごとに別にします。`NEXT_PUBLIC_*` はビルド時にバンドルへ埋め込まれるため、変更後は再デプロイが必要です。
+
+**service-front**
+
+| 変数 | 用途 | Preview（stg） | Production（prod） | 必須 |
+|------|------|----------------|--------------------|:---:|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase 接続先 | stg の Project URL（Settings > Data API） | prod の Project URL | ✓ |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 公開キー | stg の anon key（Settings > API Keys） | prod の anon key | ✓ |
+| `SUPABASE_SERVICE_ROLE_KEY` | Stripe webhook の枠付与（サーバー専用） | stg の service_role key | prod の service_role key | ✓ |
+| `NEXT_PUBLIC_SITE_URL` | 正規 URL（認証リダイレクト・Checkout 戻り先・シェア URL） | stg 固定 URL | 本番 URL | ✓ |
+| `STRIPE_SECRET_KEY` | ログ枠購入 | テストモード `sk_test_...` | 本番モード `sk_live_...` | 購入機能を使う場合 |
+| `STRIPE_WEBHOOK_SECRET` | webhook 署名検証 | stg エンドポイント登録時の `whsec_...` | prod 同 | 同上 |
+| `RESEND_API_KEY` | 問い合わせメール送信 | Resend の API キー | 本番用 | 任意 |
+| `CONTACT_MAIL_FROM` | 問い合わせメールの送信元 | 送信元アドレス | 同 | 任意 |
+| `CONTACT_NOTIFY_TO` | 問い合わせ通知先 | 通知先アドレス | 同 | 任意 |
+| `GOOGLE_MAPS_API_KEY` | ショップ住所のジオコーディング | API キー（未設定なら座標なしで動く） | 同 | 任意 |
+| `BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD` | stg 閲覧制限（両方そろうと有効） | 任意の ID / パスワード | **登録しない**（本番全体が閉じる） | 任意 |
+
+**admin-front**
+
+| 変数 | 用途 | Preview（stg） | Production（prod） | 必須 |
+|------|------|----------------|--------------------|:---:|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase 接続先 | stg の Project URL | prod の Project URL | ✓ |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 公開キー | stg の anon key | prod の anon key | ✓ |
+| `SUPABASE_SERVICE_ROLE_KEY` | 2 要素認証の解除機能（サーバー専用） | stg の service_role key | prod の service_role key | ✓ |
+| `NEXT_PUBLIC_ADMIN_SITE_URL` | 管理画面の正規 URL | stg 固定 URL | 本番 URL | ✓ |
+| `BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD` | stg 閲覧制限 | 任意の ID / パスワード | **登録しない** | 任意 |
+
+**Vercel に登録してはいけない変数**: `SUPABASE_INTERNAL_URL`（Docker 開発用。置くと認証 Cookie / OAuth URL が誤動作）、`NEXT_DIST_DIR` / `SUPABASE_TEST_*` / `SUPABASE_DB_TESTS`（ローカル・テスト専用）。
+
+> `RESEND_API_KEY` と `CONTACT_MAIL_FROM` は **GitHub（Supabase の認証メール用）と Vercel（アプリの問い合わせメール用）の両方**に置きます。置き場所ごとの整理・外部サービス側の設定・ローカルの dotenv は [ENV_SETTINGS.md](ENV_SETTINGS.md)、設計の原本は [specs/028-deploy-pipeline/contracts/secrets-and-envs.md](specs/028-deploy-pipeline/contracts/secrets-and-envs.md) を参照してください。
 
 stg の閲覧を制限したい場合は、Preview スコープにだけ `BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD` を登録すると両アプリの `src/proxy.ts` が Basic 認証を要求します（prod・ローカルは未設定のため無効。詳細は [DEPLOY_STG.md](DEPLOY_STG.md) の「stg の閲覧制限」）。
 
 ### 初期セットアップ（一度だけ）
 
-1. **Supabase**: stg / prod の 2 プロジェクトを作成し、Reference ID・DB パスワード・API キーを控える。Auth の Site URL / Redirect URLs に各環境の URL を登録（`supabase config push` は使わない・手動運用）
+1. **Supabase**: stg / prod の 2 プロジェクトを作成し、Reference ID・DB パスワード・API キーを控える。Auth 等の設定は Dashboard で手入力せず、`supabase/config.staging.toml` / `config.production.toml` の `project_id`（Reference ID）と URL を記入してコミットする（`migrate` ジョブが `supabase config push` で反映。詳細は [supabase/README.md](supabase/README.md#環境別の設定ファイルlocal--stg--prod)）。Storage バケット `dive-photos` と初回 superadmin は Dashboard で作成
 2. **Vercel**: service-front / admin-front の 2 プロジェクトを作成。Root Directory をそれぞれ `service-front` / `admin-front` に設定し、**Git 連携の自動デプロイを無効化**（有効のままだと push で二重デプロイされ順序保証が壊れる）。Environment Variables を Preview / Production スコープで設定
 3. **Stripe**: テストモード（stg URL）/ 本番モード（prod URL）それぞれに webhook エンドポイント `https://<env-url>/api/stripe/webhook` を登録し、`whsec_...` を Vercel の該当スコープへ
 4. **GitHub Environments**: 上記 3 環境を作成し、シークレットと required reviewers を設定
