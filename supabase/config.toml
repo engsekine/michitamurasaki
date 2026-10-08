@@ -1,5 +1,15 @@
 # For detailed configuration reference documentation, visit:
 # https://supabase.com/docs/guides/local-development/cli/config
+#
+# 環境ごとの設定ファイルの分担:
+#   - config.toml（このファイル）   : ローカルスタック（supabase start）用 兼 全環境共通のベース
+#   - config.staging.toml            : stg プロジェクト向けの差分（[remotes.staging.*]）
+#   - config.production.toml         : prod プロジェクト向けの差分（[remotes.production.*]）
+#   CLI は config.toml しか読まないため、デプロイ時に scripts/build-remote-config.sh が差分を末尾に結合し、
+#   `supabase config push` でリモートへ反映する。ローカル専用の値（localhost の URL・nonce 省略など）は
+#   各環境ファイル側で上書きされるので、ここにはローカルで動く値を書いてよい。
+#   共通設定（パスワード要件・メール確認・日本語テンプレート等）を変えるときはこのファイルだけ直せばよい。
+#
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
 project_id = "claude-settings"
@@ -244,7 +254,8 @@ otp_expiry = 3600
 # 本番の認証メール送信元（023）。プロジェクト既存の Resend を SMTP として利用し、
 # サインアップ確認・パスワードリセット・メール変更などの全認証メールを実受信箱へ届ける（FR-001/007a）。
 # 有効/無効は supabase/.env の SMTP_ENABLED で切り替える（未設定だと起動エラーになるので必ず定義する）。
-# ローカルは false 推奨（Mailpit がメールを捕捉。RESEND_API_KEY 不要）、本番反映時は true + RESEND_API_KEY 必須。
+# ローカルは false 推奨（Mailpit がメールを捕捉。RESEND_API_KEY 不要）。
+# stg / prod は config.staging.toml / config.production.toml 側で enabled = true に固定し、RESEND_API_KEY は CI の Secret で注入する。
 [auth.email.smtp]
 enabled = "env(SMTP_ENABLED)"
 host = "smtp.resend.com"
@@ -356,7 +367,7 @@ redirect_uri = ""
 url = ""
 # ローカルで Google サインインするために必須（nonce チェックをスキップ）。
 # ⚠ 本番は必ず false にすること: nonce 検証を外すと OIDC のリプレイ攻撃耐性が落ちる。
-# この config を supabase config push 等で本番へ反映する場合はこの行を false に上書きする
+# stg / prod は config.staging.toml / config.production.toml の [remotes.*.auth.external.google] で false に上書きされる
 # （セキュリティ監査 2026-07-02 / specs/016-google-login）
 skip_nonce_check = true
 email_optional = false

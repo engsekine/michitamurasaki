@@ -33,7 +33,7 @@
 | 既存 4 ユーザーへ当日分事前付与 | `select public.apply_credit_ledger_entry('<user_id>', 'daily_bonus', 1, (now() at time zone 'Asia/Tokyo')::date);` を `test@` / `buddy@` / `rename@` / `admin@` に追加 | 既存 E2E の初回ログインでモーダルが出て操作を妨害するのを防ぐ（research.md R4） |
 | 新規ユーザー `bonus@example.com` | 既存ユーザーと同形式（auth.users + identities + meta で handle: `bonus-hanako`）。**daily_bonus は事前付与しない** | モーダル表示 E2E 専用（初回ログインで付与 → モーダル表示） |
 
-注意: seed 実行日と E2E 実行日が JST でまたがると事前付与が「前日分」となり効果を失う。E2E は `make supabase-reset` 直後に実行する既存運用を前提とする。
+注意: seed 実行日と E2E 実行日が JST でまたがると事前付与が「前日分」となり効果を失う。E2E は `make supabase-reset` 直後に実行する既存運用を前提とする。モーダル表示の E2E 自体は、`bonus@example.com` の当日分を `beforeAll` で取り消してから始まるため（`e2e/shared/db.ts`）、同日中の再実行に reset は不要。
 
 ## クライアント側の一時状態（永続化しない）
 

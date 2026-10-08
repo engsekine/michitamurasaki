@@ -1,5 +1,11 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
+import {
+    applyNoIndexHeader,
+    isNonProductionVercelEnv,
+    readBasicAuthCredentials,
+    requireBasicAuth,
+} from '@/shared/lib/previewProtection';
 import { updateSession } from '@/shared/lib/supabase/middleware';
 
 /**
@@ -30,7 +36,20 @@ const APP_ROUTE_PREFIXES = [
  */
 const AUTH_ROUTES = ['/login', '/signup', '/reset-password'];
 
+/**
+ * stg の Basic 認証を免除するパス（プレフィックス一致）。
+ * Stripe の webhook はサーバー間通信で資格情報を付けられない（署名検証で守られている）。
+ * Supabase の認証コールバック（`/api/auth/callback`）はブラウザ経由で到達するので免除しない。
+ */
+const BASIC_AUTH_EXCLUDED_PATH_PREFIXES = ['/api/stripe/webhook'];
+
 export const proxy = async (request: NextRequest) => {
+    // stg の閲覧制限は Supabase のセッション処理より前に行い、未認証の来訪者に DB を触らせない。
+    // 資格情報（BASIC_AUTH_USER / BASIC_AUTH_PASSWORD）は Vercel の Preview スコープにだけ置くので、
+    // prod・ローカルでは未設定 = 無効になる
+    const denied = requireBasicAuth(request, readBasicAuthCredentials(), BASIC_AUTH_EXCLUDED_PATH_PREFIXES);
+    if (denied) return denied;
+
     const { response, user } = await updateSession(request);
 
     const { pathname } = request.nextUrl;
@@ -48,7 +67,9 @@ export const proxy = async (request: NextRequest) => {
         return NextResponse.redirect(new URL('/', request.url));
     }
 
-    return response;
+    // 本番以外（Vercel Preview = stg）は検索エンジンに載せない。独自ドメインを Preview に
+    // 割り当てると Vercel の自動 noindex が付かなくなるため、アプリ側でも保険として付ける
+    return isNonProductionVercelEnv() ? applyNoIndexHeader(response) : response;
 };
 
 export const config = {

@@ -10,7 +10,8 @@ CLAUDE_TARGETS := skills agents rules
         front-check front-check-fix \
         front-type-check \
         front-test front-test-watch front-test-coverage \
-        front-test-storybook front-test-e2e front-test-e2e-ui front-test-a11y front-test-all \
+        front-test-storybook front-test-all \
+        e2e e2e-ui e2e-watch e2e-a11y e2e-service e2e-admin e2e-install \
         front-storybook front-build-storybook front-ci-storybook \
         front-validate \
         admin-cert admin-clean-cert \
@@ -104,17 +105,37 @@ front-test-coverage:
 front-test-storybook:
 	$(MAKE) -C service-front test-storybook
 
-front-test-e2e:
-	$(MAKE) -C service-front test-e2e
-
-front-test-e2e-ui:
-	$(MAKE) -C service-front test-e2e-ui
-
-front-test-a11y:
-	$(MAKE) -C service-front test-a11y
-
 front-test-all:
 	$(MAKE) -C service-front test-all
+
+## E2E（Playwright）。アプリから独立した e2e/ ワークスペースで service-front / admin-front を検証する
+## 前提: Supabase ローカルが起動済み（seed 投入済み）・各アプリの .env が存在すること。dev サーバーは Playwright が起動する
+e2e:
+	npm run test --workspace e2e
+
+## E2E UI モード（ブラウザ表示が必要なためホストで実行）
+e2e-ui:
+	npm run test:ui --workspace e2e
+
+## E2E watch モード（spec を保存するたびに変更したファイルのテストを再実行。Ctrl+C で終了）
+e2e-watch:
+	npm run test:watch --workspace e2e
+
+## a11y E2E（両アプリの a11y/ 配下のみ）
+e2e-a11y:
+	npm run test:a11y --workspace e2e
+
+## service-front だけ実行（admin-front の dev サーバーは起動しない）
+e2e-service:
+	npm run test:service --workspace e2e
+
+## admin-front だけ実行（service-front の dev サーバーは起動しない）
+e2e-admin:
+	npm run test:admin --workspace e2e
+
+## Playwright のブラウザ（Chromium）をインストール（初回のみ）
+e2e-install:
+	npm run install:browsers --workspace e2e
 
 front-validate:
 	$(MAKE) -C service-front validate
@@ -191,10 +212,16 @@ help:
 	@echo "  make front-test-watch       単体テスト (watch)"
 	@echo "  make front-test-coverage    単体テスト + coverage"
 	@echo "  make front-test-storybook   Storybook テスト"
-	@echo "  make front-test-e2e         E2E テスト"
-	@echo "  make front-test-e2e-ui      E2E テスト (UI モード)"
-	@echo "  make front-test-a11y        a11y E2E テスト 一覧"
-	@echo "  make front-test-all         単体 + E2E"
+	@echo "  make front-test-all         単体 + Storybook"
+	@echo ""
+	@echo "  [E2E (e2e/ ワークスペース: service-front + admin-front)]"
+	@echo "  make e2e                    E2E テスト（両アプリ）"
+	@echo "  make e2e-service            E2E テスト（service-front のみ）"
+	@echo "  make e2e-admin              E2E テスト（admin-front のみ）"
+	@echo "  make e2e-a11y               a11y E2E テスト（両アプリ）"
+	@echo "  make e2e-ui                 E2E テスト (UI モード)"
+	@echo "  make e2e-watch              E2E テスト (watch: spec 保存で再実行)"
+	@echo "  make e2e-install            Playwright ブラウザのインストール（初回）"
 	@echo "  make front-validate         すべてのチェックを実行"
 	@echo ""
 	@echo "  [service-front: Storybook]"
