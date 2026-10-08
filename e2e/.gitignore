@@ -1,0 +1,6 @@
+# Playwright の実行結果（HTML レポート / トレース・スクリーンショット）
+/playwright-report/
+/test-results/
+
+# setup project が保存するログイン済み Cookie（storageState）。セッション情報なのでコミットしない
+/.auth/

@@ -34,7 +34,7 @@
 
 - **Decision**: `supabase/seed.sql.template` を更新し、既存の E2E 用ユーザー（`test@` / `buddy@` / `rename@` / `admin@`）には **当日（JST）分の `daily_bonus` を事前付与**しておく。加えてモーダル検証専用のシードユーザー **`bonus@example.com`**（当日分未付与・handle: `bonus-hanako`）を新設する
 - **Rationale**: モーダル導入後、db reset 直後に最初にログインした E2E テストへ突然モーダルが被さり、既存テストのクリック操作を妨害してフレーキーになる。既存ユーザーへ当日分を事前付与しておけば `grant_daily_bonus` が全テストで no-op（`false`）になり、既存 E2E は一切影響を受けない。モーダルの表示検証は専用ユーザーで行う（初回ログインで `true` → モーダル表示）
-- **注意点（ドキュメント化する）**: seed 実行日と E2E 実行日が JST でまたがると事前付与が「昨日の分」になり既存テストにモーダルが出る。E2E 実行前に `make supabase-reset` を行う運用（既存の前提）で回避される。モーダル表示テストも同じ理由で db reset 後 1 回のみ成立（再実行は reset が必要）
+- **注意点（ドキュメント化する）**: seed 実行日と E2E 実行日が JST でまたがると事前付与が「昨日の分」になり既存テストにモーダルが出る。E2E 実行前に `make supabase-reset` を行う運用（既存の前提）で回避される。モーダル表示テストは当初 db reset 後 1 回のみ成立していたが、その後 E2E の `beforeAll` で `bonus@example.com` の当日分を DB から取り消す（`e2e/shared/db.ts`）ようにし、reset なしで再実行できるようにした
 - **Alternatives considered**:
   - 各 E2E テストの login ヘルパーで「モーダルが出ていたら閉じる」— 全 spec ファイルに散らばり、タイミング依存で不安定。却下
   - E2E 用に付与機能を無効化する環境変数 — テストが本番挙動から乖離する。却下

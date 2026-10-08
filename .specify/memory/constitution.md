@@ -28,6 +28,14 @@ Next.js App Router を使用し、Server Components をデフォルトとする�
 
 コーディング規約は `.claude/rules/` を正とする: TypeScript strict mode・`any` 禁止（`typescript.md`）、Feature-based アーキテクチャとコンポーネントフォルダ構成（`react.md` + `.claude/CLAUDE.md`）、Tailwind CSS utility-first（`css.md`）、snake_case / 3NF / timestamptz（`sql.md`）、命名は `readable-code.md` に従う。
 
+## Product Direction
+
+Web 上でダイビングのログ（ログブック）を作成・管理できるアプリ。機能の実装状況は `specs/` が正であり、ここには仕様書に閉じないプロダクト方針だけを置く（旧 `docs/product.md` から移管）。
+
+- **収益はログパックの買い切り販売のみ**: ログ枠制 + デイリーボーナス（1 日 1 枠）+ Stripe Checkout によるログパック購入（`specs/026-log-monetization/`）。価格は実装（`LOG_CREDIT_PACKS`）が正
+- **広告なしは恒久方針**: 無料ユーザーへの広告表示による収益化は行わない（026 で明文化）
+- **将来構想（未着手）**: 海洋データ（海水温など）の販売。ダイビングスポットのマスタ化は `specs/011-dive-sites-master/` で実装済み
+
 ## Technology Stack
 
 - フロントエンド: Next.js（App Router）/ TypeScript / Tailwind CSS / React Compiler
@@ -52,4 +60,4 @@ Next.js App Router を使用し、Server Components をデフォルトとする�
 - すべての plan.md は Constitution Check で本原則への準拠を確認する。違反が必要な場合は Complexity Tracking に理由を記録する
 - 機能番号（001, 002, ...）は欠番にせず再採番しない
 
-**Version**: 1.0.0 | **Ratified**: 2026-06-10 | **Last Amended**: 2026-06-10
+**Version**: 1.1.0 | **Ratified**: 2026-06-10 | **Last Amended**: 2026-09-14
