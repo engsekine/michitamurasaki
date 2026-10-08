@@ -19,17 +19,17 @@
 [remotes.staging]
 # stg プロジェクトの Reference ID（Dashboard → Project Settings → General → Project ID）。
 # Secret ではないのでコミットしてよい。GitHub Secret SUPABASE_PROJECT_REF と同じ値にする。
-project_id = "REPLACE_ME_STG_PROJECT_REF"
+project_id = "ymbhvtebuglkheehjtci"
 
 [remotes.staging.auth]
 # service-front の stg 固定 URL（Vercel の NEXT_PUBLIC_SITE_URL と揃える）
-site_url = "https://diving-log-stg.vercel.app"
+site_url = "https://diving-log-stg.sekinedaichi.com"
 # ログイン後の戻り先として許可する URL。`/**` でパス全体を包含する
 # （メールリンク・Google OAuth の戻り先 /api/auth/callback もここに含まれる）。
 # Vercel の Preview 一時 URL からもログインしたい場合は "https://*-<team-slug>.vercel.app/**" を追加する。
 additional_redirect_urls = [
-    "https://diving-log-stg.vercel.app/**",
-    "https://diving-log-admin-stg.vercel.app/**",
+    "https://diving-log-stg.sekinedaichi.com/**",
+    "https://diving-log-admin-stg.sekinedaichi.com/**",
 ]
 
 [remotes.staging.auth.rate_limit]
