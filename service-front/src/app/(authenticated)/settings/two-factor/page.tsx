@@ -7,7 +7,7 @@ export const metadata = generatePageMetadata(
     {
         slug: '/settings/two-factor',
         title: '2 要素認証',
-        description: 'ログイン時の SMS 2 要素認証を設定します',
+        description: 'ログイン時の認証アプリによる 2 要素認証を設定します',
     },
     { noIndex: true },
 );
@@ -21,8 +21,8 @@ export default async function TwoFactorSettingsPage() {
             <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-12">
                 <Heading level={1}>2 要素認証</Heading>
                 <p className="text-muted-foreground text-sm">
-                    有効にすると、ログイン時にパスワード（または Google 認証）に加えて、登録した電話番号宛の SMS
-                    確認コードが必要になります。
+                    有効にすると、ログイン時にパスワード（または Google 認証）に加えて、認証アプリ（Google
+                    Authenticator・1Password など）に表示される確認コードが必要になります。
                 </p>
                 <TwoFactorSettings initialEnabled={status.enabled} initialFactorId={status.factorId} />
             </div>

@@ -1,6 +1,6 @@
 # Contract: 管理者による 2 要素認証の解除（admin-front / FR-016）
 
-電話紛失・番号変更時のリカバリー。既存 `admin-front/src/features/users-admin/` に追加する。Supabase Admin API（service_role 必須）を使うため、サービスロールクライアントを新設する。
+認証アプリを入れた端末の紛失・機種変更時のリカバリー。既存 `admin-front/src/features/users-admin/` に追加する。Supabase Admin API（service_role 必須）を使うため、サービスロールクライアントを新設する。
 
 ## サービスロールクライアント（新規）
 
@@ -31,7 +31,15 @@ getUserMfaStatus(userId: string): Promise<{ enabled: boolean }>
 
 - ユーザー詳細で「2 要素認証: 有効/無効」を表示し、解除ボタンの出し分けに使う。先頭で `requireAdmin()`。
 - `listFactors` の結果に `status === 'verified'` の要素があれば `enabled: true`。取得失敗時は `enabled: false`（安全側）。
-- 電話番号のマスク表示（`phoneMasked`）は UI 上不要のため実装しない。
+
+## 管理者自身のログイン 2 段階目（`features/admin-auth/server/mfaActions.ts`）
+
+```
+getLoginMfaFactorId(): Promise<string | null>            // verified な totp 要素 ID
+verifyAdminLogin(factorId: string, code: string): Promise<ActionResult>  // challengeAndVerify → 成功で redirect('/')
+```
+
+- 管理者も同じ `auth.users` の TOTP 要素を使う（登録は service-front の設定画面から行う）。2026-10-09 に SMS から TOTP へ移行し、再送 API（`challengeAdminLoginFactor`）は廃止。
 
 ## UI
 

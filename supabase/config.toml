@@ -307,32 +307,25 @@ max_frequency = "5s"
 # enabled = true
 # uri = "pg-functions://<database>/<schema>/<hook_name>"
 
-# SMS 2 要素認証（023 / US2）の送信元。Twilio を利用する。
-# 認証情報はコミットせず env で注入する（ローカルで実送信を避けたい場合は下の test_otp を使う）。
-[auth.sms.twilio]
-enabled = true
-account_sid = "env(SUPABASE_AUTH_SMS_TWILIO_ACCOUNT_SID)"
-message_service_sid = "env(SUPABASE_AUTH_SMS_TWILIO_MESSAGE_SERVICE_SID)"
-# DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
-auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
-
-# Multi-factor-authentication is available to Supabase Pro plan.
+# 2 要素認証（023 / US2）は認証アプリ（TOTP）で提供する。
+# SMS（Twilio）は 2026-10-09 に廃止: 送信ごとの従量課金に加え Supabase 側も電話 MFA が有料アドオンで、
+# TOTP なら外部サービス・シークレットが一切不要なため。
 [auth.mfa]
 # Control how many MFA factors can be enrolled at once per user.
 max_enrolled_factors = 10
 
-# Control MFA via App Authenticator (TOTP)
+# 認証アプリ（TOTP）によるオプトインの 2 要素認証。全プランで無料
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
-
-# Configure MFA via Phone Messaging（023 / US2）。オプトインの 2 要素認証として有効化する。
-[auth.mfa.phone]
 enroll_enabled = true
 verify_enabled = true
-otp_length = 6
-template = "【ダイビングログ】確認コード: {{ .Code }}"
-max_frequency = "5s"
+
+# Configure MFA via Phone Messaging
+# [auth.mfa.phone]
+# enroll_enabled = true
+# verify_enabled = true
+# otp_length = 6
+# template = "Your code is {{ .Code }}"
+# max_frequency = "5s"
 
 # Configure MFA via WebAuthn
 # [auth.mfa.web_authn]

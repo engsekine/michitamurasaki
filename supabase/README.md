@@ -30,7 +30,8 @@ cp supabase/.env.example supabase/.env
 | `SMTP_ENABLED` | ✓ | 認証メールの実送信（Resend）を有効にするか。**未定義だと `supabase start` がパースエラーで起動しない**。ローカルは `false` 推奨（メールは Mailpit http://127.0.0.1:54324 が捕捉） |
 | `RESEND_API_KEY` | `SMTP_ENABLED=true` 時 | Resend の API キー |
 | `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET` | Google ログイン使用時 | Google OAuth の認証情報 |
-| `SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN` | SMS 実送信時 | Twilio の Auth Token（未設定でも警告のみで動作する） |
+
+> 2 要素認証は認証アプリ（TOTP、`[auth.mfa.totp]`）方式のため、SMS プロバイダの資格情報は不要。
 
 > seed 生成用の `TEST_USER_*` は `.env` ではなく **`supabase/.env.local`** に置きます（「初期データ」セクションのテンプレート方式を参照）。
 

@@ -12,7 +12,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** 未有効化: 電話番号を入力してコードを送信する導線 */
+/** 未有効化: 認証アプリの設定を開始する導線 */
 export const Disabled: Story = {
     args: { initialEnabled: false, initialFactorId: null },
 };

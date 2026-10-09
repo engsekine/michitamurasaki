@@ -64,7 +64,7 @@ echo ".devcontainer/devcontainer.json" >> .git/info/exclude
 | `mobile/` | モバイルアプリ（Expo / React Native）。**未完成（開発中）** | 8081（Expo dev server） | [mobile/README.md](mobile/README.md)（Expo 初期テンプレートのまま） |
 | `packages/` | 共有パッケージ（`@repo/ui` / `@repo/supabase`） | - | - |
 
-> **モバイルアプリは未完成です。** 現在はログイン・ログの一覧 / 作成・オフライン同期・エクスポート呼び出しの最小機能のみで、Web（service-front）と同等の機能や 2 要素認証（SMS）には対応していません。上記の起動順序・デプロイ手順は Web サービスを対象としています。
+> **モバイルアプリは未完成です。** 現在はログイン・ログの一覧 / 作成・オフライン同期・エクスポート呼び出しの最小機能のみで、Web（service-front）と同等の機能や 2 要素認証（認証アプリ）には対応していません。上記の起動順序・デプロイ手順は Web サービスを対象としています。
 
 ### 前提ツール
 
@@ -211,7 +211,6 @@ GitHub リポジトリの **Settings > Environments** に 3 つの環境を作�
 | `RESEND_API_KEY` | 認証メール（確認・リセット）の SMTP 送信 | Resend > API Keys | ✓ |
 | `CONTACT_MAIL_FROM` | 認証メールの送信元アドレス | Resend でドメイン検証済みのアドレス | ✓ |
 | `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET` | Google ログイン | Google Cloud Console > OAuth 2.0 クライアント | Google ログインを使う場合 |
-| `SUPABASE_AUTH_SMS_TWILIO_ACCOUNT_SID` / `_MESSAGE_SERVICE_SID` / `_AUTH_TOKEN` | SMS 2 要素認証 | Twilio Console | SMS 2FA を使う場合 |
 
 ### 必要な環境変数（Vercel Environment Variables）
 

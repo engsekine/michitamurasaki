@@ -1,4 +1,4 @@
-# Specification Quality Checklist: 認証強化（サインアップ確認メールの本番配信 + ログイン時 SMS 2 要素認証）
+# Specification Quality Checklist: 認証強化（サインアップ確認メールの本番配信 + ログイン時 2 要素認証）
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-07-01
@@ -31,6 +31,6 @@
 
 ## Notes
 
-- 2 つのスコープ判断（メール = 本番配信の実現 / 電話番号認証 = SMS 2 要素認証）は 2026-07-01 のクラリフィケーションで確定済み。
-- メール送信サービス・SMS プロバイダの具体的選定、DNS/送信者認証の設定、電話紛失時のリカバリーコードは意図的に `/speckit-plan` 以降へ委譲（Assumptions に明記）。
+- 2 つのスコープ判断（メール = 本番配信の実現 / 電話番号認証 = 2 要素認証）は 2026-07-01 のクラリフィケーションで確定済み。2 要素認証の方式は 2026-10-09 に SMS から認証アプリ（TOTP）へ変更（spec.md 冒頭の改訂注記を参照）。
+- メール送信サービスの具体的選定、DNS/送信者認証の設定、端末紛失時のリカバリーコードは意図的に `/speckit-plan` 以降へ委譲（Assumptions に明記）。
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.

@@ -1,4 +1,6 @@
-# Phase 1 Data Model: 認証強化（確認メール本番配信 + SMS 2 要素認証）
+# Phase 1 Data Model: 認証強化（確認メール本番配信 + 認証アプリ 2 要素認証）
+
+> 2026-10-09: 2 要素認証を SMS（phone factor）から認証アプリ（TOTP factor）へ移行。
 
 本フィーチャーは **`public` スキーマに新規テーブルを追加しない**。MFA の状態は Supabase が `auth` スキーマで管理し、確認メールは Supabase Auth が送信する。ここでは (a) アプリが参照・操作する外部エンティティ（auth スキーマ／設定）と、(b) 監査記録の使い方、(c) メールテンプレート資産を整理する。
 
@@ -6,31 +8,31 @@
 
 ### auth.mfa_factors（Supabase 管理）
 
-ユーザーに紐づく 2 要素認証の要素。本フィーチャーでは phone factor のみ扱う。
+ユーザーに紐づく 2 要素認証の要素。本フィーチャーでは TOTP factor のみ扱う。
 
 | 概念フィールド | 意味 | 備考 |
 |----------------|------|------|
-| id | 要素 ID | challenge/verify/delete のキー |
+| id | 要素 ID | verify/delete のキー |
 | user_id | 所有ユーザー | |
-| factor_type | 要素種別 | 本フィーチャーは `phone` のみ |
+| factor_type | 要素種別 | 本フィーチャーは `totp` のみ |
 | status | 状態 | `unverified`（enroll 直後） / `verified`（コード確認後に有効） |
-| phone | 登録電話番号 | 国際形式（E.164）で保持される |
-| friendly_name | 表示名 | 任意 |
+| secret | 共有シークレット | enroll 応答の `totp.secret` / `totp.qr_code` としてのみ返り、以後は参照しない |
+| friendly_name | 表示名 | `認証アプリ` 固定。同名の要素が残っていると enroll が拒否されるため、enroll 前に未検証要素を解除する |
 
-- 操作: enroll（`mfa.enroll`）で `unverified` 作成 → challenge+verify で `verified` に昇格。disable はユーザー自身が `mfa.unenroll({ factorId })`、管理者は `auth.admin.mfa.deleteFactor`。
-- スコープ制約: 本フィーチャーではユーザーあたり有効な phone 要素は実質 1 つ（複数要素の管理 UI はスコープ外。既存の重複要素があれば解除時に全 phone を対象とする）。
+- 操作: enroll（`mfa.enroll({ factorType: 'totp' })`）で `unverified` 作成 → `mfa.challengeAndVerify` で `verified` に昇格。disable はユーザー自身が `mfa.unenroll({ factorId })`、管理者は `auth.admin.mfa.deleteFactor`。
+- スコープ制約: ユーザーあたり有効な TOTP 要素は 1 つ（複数要素の管理 UI はスコープ外。管理者の解除は全要素を対象とする）。
 
 ### auth.mfa_challenges（Supabase 管理）
 
-ログイン 2 段階目または enroll 時に発行される SMS チャレンジ。
+ログイン 2 段階目または enroll 時にコード検証のために発行されるチャレンジ。
 
 | 概念フィールド | 意味 | 備考 |
 |----------------|------|------|
-| id | チャレンジ ID | verify のキー |
+| id | チャレンジ ID | verify のキー（`challengeAndVerify` 内部で発行・消費） |
 | factor_id | 対象要素 | |
-| （コード / 有効期限 / 検証状態） | OTP と失効管理 | Supabase 内部管理。`[auth.mfa.phone] otp_length=6` |
+| （有効期限 / 検証状態） | 失効管理 | Supabase 内部管理。コードは認証アプリが RFC 6238 で生成（6 桁・30 秒） |
 
-- 操作: `mfa.challenge({ factorId })` で SMS 送信 → `mfa.verify({ factorId, challengeId, code })` で消費。誤コード・期限切れは verify がエラー（FR-011）。
+- 操作: `mfa.challengeAndVerify({ factorId, code })`。誤コード・期限切れはエラー（FR-011）、試行過多は 429（FR-013）。
 
 ### 認証セッションの AAL（Assurance Level）
 
@@ -51,12 +53,11 @@
 | 対象 | 変更内容 |
 |------|----------|
 | `supabase/config.toml [auth.email.smtp]` | コメント解除・Resend 本番設定（`smtp.resend.com` / sender_name / admin_email=env / pass=env(RESEND_API_KEY)） |
-| `supabase/config.toml [auth.mfa.phone]` | `enroll_enabled=true` / `verify_enabled=true` |
-| `supabase/config.toml [auth.sms.twilio]` | `enabled=true` + `account_sid`/`message_service_sid`/`auth_token=env` |
+| `supabase/config.toml [auth.mfa.totp]` | `enroll_enabled=true` / `verify_enabled=true`（`[auth.mfa.phone]` / `[auth.sms.twilio]` は 2026-10-09 に削除） |
 | `supabase/config.toml [auth] / [auth.email]` | `secure_password_change=true`（再認証必須）・`[auth.email] max_frequency=60s`（メール爆撃対策・UI クールダウンと整合）に変更（2026-07-02 セキュリティ監査） |
 | `supabase/templates/confirmation.html`（新規） | 日本語のサインアップ確認テンプレート |
 | `supabase/templates/recovery.html` ほか（任意） | パスワードリセット等の日本語化（優先度低） |
-| 環境変数 | `RESEND_API_KEY` / `CONTACT_MAIL_FROM` / `SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN` / `SUPABASE_SERVICE_ROLE_KEY`（admin-front） |
+| 環境変数 | `RESEND_API_KEY` / `CONTACT_MAIL_FROM` / `SUPABASE_SERVICE_ROLE_KEY`（admin-front）。TOTP 化により SMS プロバイダの変数は不要 |
 | DNS（本番・コード外） | Resend ドメイン認証（SPF/DKIM）+ DMARC |
 
 ## D. 監査ログ（既存 `recordAudit` を利用）
