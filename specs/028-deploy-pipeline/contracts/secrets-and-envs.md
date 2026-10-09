@@ -66,7 +66,7 @@ Preview スコープ = stg、Production スコープ = prod として**別値**�
 | サービス | 設定 | 備考 |
 |---------|------|------|
 | Vercel（両プロジェクト） | Git 連携の自動デプロイを**無効化**、Root Directory を `service-front` / `admin-front` に設定 | 有効なままだと push で二重デプロイ（research 2） |
-| Supabase（stg / prod） | Auth / API / Storage 設定は `supabase/config.toml`（共通ベース）+ `supabase/config.staging.toml` / `config.production.toml`（`[remotes.<env>.*]` の環境差分）で管理し、`migrate` ジョブが `supabase/scripts/build-remote-config.sh` で結合して `supabase config push` で反映する | Dashboard での手入力はしない（ファイルが正）。Reference ID は差分ファイルの `project_id` にコミットする |
+| Supabase（stg / prod） | Auth / API / Storage 設定は `supabase/config.toml`（共通ベース）+ `supabase/config.staging.toml` / `config.production.toml`（`[remotes.<env>.*]` の環境差分）で管理し、`migrate` ジョブが `supabase/scripts/build-remote-config.sh` で `config.toml` の該当セクションへキー単位でマージして `supabase config push` で反映する（CLI が `[remotes.*]` ブロックを含む config の push を拒否するため、追記ではなくマージ） | Dashboard での手入力はしない（ファイルが正）。Reference ID は差分ファイルの `project_id` にコミットし、マージ時に `SUPABASE_PROJECT_REF` との一致を検証する |
 | Supabase Dashboard（stg / prod） | Storage バケット `dive-photos` の作成、初回 superadmin の登録 | `config push` の反映対象外のため手動 |
 | Stripe | stg（テストモード）/ prod（本番モード）それぞれに webhook エンドポイント `https://<env-url>/api/stripe/webhook` を登録し、`checkout.session.completed` / `checkout.session.expired` / `checkout.session.async_payment_failed` / `charge.refunded` を購読 | 発行された `whsec_...` を Vercel 環境変数へ |
 | GitHub | develop / main のブランチ保護（PR 必須 + CI required checks） | FR-007 の前提 |

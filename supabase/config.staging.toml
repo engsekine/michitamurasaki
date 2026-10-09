@@ -6,15 +6,18 @@
 #   ベース（config.toml）の共通設定（パスワード要件・メール確認・日本語テンプレート等）は継承する。
 #
 # 使い方:
-#   Supabase CLI は `supabase/config.toml` という固定名しか読まない。
-#   `supabase/scripts/build-remote-config.sh staging` がこのファイルを config.toml の末尾に結合し、
-#   `supabase link` 先の Reference ID と `project_id` が一致した remote の値が push 時に上書き適用される。
+#   Supabase CLI は `supabase/config.toml` という固定名しか読まず、`config push` は `[remotes.*]` ブロックを
+#   含む config を拒否する。そこで `supabase/scripts/build-remote-config.sh staging <project_ref>` が
+#   このファイルの `[remotes.staging.<section>]` を `[<section>]` と読み替え、config.toml の該当キーを
+#   置き換えたフラットな config.toml を生成してから push する（追記ではなくマージ）。
+#   `project_id` は link 先の Reference ID と一致するかの検証にだけ使い、出力には含めない。
 #   デプロイワークフロー（.github/workflows/_deploy.yml）が自動で実行する。
 #
 # ここに書くもの / 書かないもの:
 #   - 書く: ベースと値が異なる項目だけ（URL・レート制限・ローカル用回避策の無効化）
 #   - 書かない: シークレット（env() で注入する）、ローカルと同じ値（ベースから継承される）
-#   - 新しい TOML テーブルは必ず `[remotes.staging.` で始める（ベースの `[auth]` 等と重複するとパースエラー）
+#   - 新しい TOML テーブルは必ず `[remotes.staging.` で始める（マージ対象の識別に使う）
+#   - `enabled = true` だけの部分上書きは書かない（CLI のスキーマ検証がそのブロック単体に必須項目を要求する）
 
 [remotes.staging]
 # stg プロジェクトの Reference ID（Dashboard → Project Settings → General → Project ID）。

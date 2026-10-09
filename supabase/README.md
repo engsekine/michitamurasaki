@@ -44,10 +44,10 @@ Auth・API・Storage などの設定は環境ごとにファイルを分けて�
 | `config.toml` | ローカルスタック用 兼 全環境共通のベース。`supabase start` が読む |
 | `config.staging.toml` | stg 向けの差分。`[remotes.staging.*]` テーブルにベースと異なる値だけを書く |
 | `config.production.toml` | prod 向けの差分。`[remotes.production.*]` |
-| `scripts/build-remote-config.sh <staging\|production>` | 差分ファイルを `config.toml` の末尾に結合する（CLI が `config.toml` しか読まないため）。デプロイワークフローが実行する |
+| `scripts/build-remote-config.sh <staging\|production> [<project_ref>]` | 差分ファイルの `[remotes.<env>.<section>]` を `config.toml` の `[<section>]` にキー単位でマージする（`merge-remote-config.py` を呼ぶ）。CLI が `config.toml` しか読まず、`config push` が `[remotes.*]` ブロックを拒否するため。`<project_ref>` を渡すと差分の `project_id` との一致を検証する。デプロイワークフローが実行する |
 
 - **共通設定**（パスワード要件・メール確認・メールテンプレート等）を変えるときは `config.toml` だけ直す。stg / prod に自動で継承される
-- **環境固有の値**（URL・レート制限・ローカル用回避策の無効化）は各差分ファイルに書く。テーブル名は必ず `[remotes.<env>.` で始める（ベースと同名テーブルを書くとパースエラー）
+- **環境固有の値**（URL・レート制限・ローカル用回避策の無効化）は各差分ファイルに書く。テーブル名は必ず `[remotes.<env>.` で始める（マージ対象の識別に使う）。`enabled = true` だけの部分上書き（例: `[remotes.<env>.auth.email.smtp]`）は CLI のスキーマ検証がそのブロック単体に必須項目を要求して止まるので書かない
 - 差分ファイルにはシークレットを書かない。`config.toml` の `env(...)` 参照は CI では GitHub Environment secrets から解決される
 - `project_id`（Reference ID）は Secret ではないのでコミットする。`REPLACE_ME_` が残っていると結合スクリプトが失敗してデプロイを止める
 - ローカルで結合を試したあとは `git checkout supabase/config.toml` で戻す（結合後の `config.toml` はコミットしない）

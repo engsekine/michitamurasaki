@@ -1,7 +1,7 @@
 # prod 環境（Supabase 本番プロジェクト）向けの設定差分
 #
 # 役割・使い方は config.staging.toml のヘッダーを参照。
-# 本番は `supabase/scripts/build-remote-config.sh production` で結合し、
+# 本番は `supabase/scripts/build-remote-config.sh production <project_ref>` で config.toml にマージし、
 # Deploy (production) ワークフローの承認ゲート通過後に `supabase config push` される。
 #
 # 注意:

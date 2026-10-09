@@ -40,12 +40,15 @@ jobs:
               env:
                   SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
               run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
-            # Auth / API / Storage 設定の反映。config.toml（ローカル用ベース）に環境差分
-            # （config.<environment>.toml の [remotes.*]）を結合してから push する。
-            # link 先の Reference ID と remote の project_id が一致した設定だけが適用される。
+            # Auth / API / Storage 設定の反映。config.toml（ローカル用ベース）の該当セクションに
+            # 環境差分（config.<environment>.toml の [remotes.<environment>.*]）をマージしてから push する。
+            # CLI の config push は [remotes.*] ブロックを含む config を拒否するため、追記ではなくキー単位で置き換える。
+            # 第 2 引数で差分ファイルの project_id が link 先と一致することを検証する（別環境の差分を誤って push しない）。
             # 環境変数は config.toml の env(...) 参照を解決するためのもの（CI には supabase/.env がない）。
             - name: Build remote config
-              run: supabase/scripts/build-remote-config.sh "${{ inputs.environment }}"
+              env:
+                  SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+              run: supabase/scripts/build-remote-config.sh "${{ inputs.environment }}" "$SUPABASE_PROJECT_REF"
             - name: Push config
               env:
                   # ベースの enabled = "env(SMTP_ENABLED)" が bool として解釈できないとパースが止まるため必ず定義する。

@@ -1,26 +1,30 @@
 #!/usr/bin/env bash
-# 環境別の設定差分（config.<env>.toml）をベースの config.toml に結合する。
+# 環境別の設定差分（config.<env>.toml）をベースの config.toml にマージし、
+# `supabase config push` がそのまま読めるフラットな config.toml を生成する。
 #
 # なぜ必要か:
 #   Supabase CLI は `supabase/config.toml` という固定名しか読まず、include 機構もない。
-#   ローカル用のベースと stg / prod の差分を別ファイルで管理するため、
-#   `supabase config push` の直前にこのスクリプトで 1 ファイルに結合する。
+#   さらに `config push` は `[remotes.*]` ブロックを含む config を拒否するため、
+#   差分を追記するのではなく、ベースの該当セクションのキーを置き換える形で 1 ファイルに結合する
+#   （実際のマージは merge-remote-config.py が行う）。
 #
 # 使い方:
-#   supabase/scripts/build-remote-config.sh staging      # config.staging.toml を結合
-#   supabase/scripts/build-remote-config.sh production   # config.production.toml を結合
+#   supabase/scripts/build-remote-config.sh staging [<project_ref>]      # config.staging.toml を結合
+#   supabase/scripts/build-remote-config.sh production [<project_ref>]   # config.production.toml を結合
 #
+#   <project_ref> を渡すと、差分ファイルの project_id と一致するか検証する（別環境の差分を誤って push しない）。
 #   結合後の config.toml はコミットしない（CI の checkout は使い捨て）。
 #   ローカルで実行した場合は `git checkout supabase/config.toml` で元に戻す。
 set -euo pipefail
 
 usage() {
-    echo "usage: $0 <staging|production>" >&2
+    echo "usage: $0 <staging|production> [<project_ref>]" >&2
     exit 2
 }
 
-[[ $# -eq 1 ]] || usage
+[[ $# -eq 1 || $# -eq 2 ]] || usage
 env_name="$1"
+expected_ref="${2:-}"
 case "$env_name" in
     staging | production) ;;
     *) usage ;;
@@ -36,12 +40,6 @@ env_config="$supabase_dir/config.$env_name.toml"
     exit 1
 }
 
-# 二重結合の防止（同じ checkout で 2 回実行すると [remotes.*] が重複してパースエラーになる）
-if grep -q '^\[remotes\.' "$base_config"; then
-    echo "error: $base_config に既に [remotes.*] が含まれています。git checkout で元に戻してから再実行してください" >&2
-    exit 1
-fi
-
 # 未記入のプレースホルダが残っていたら止める（誤った URL / Reference ID をリモートへ反映しない）。
 # コメント行（# より後）の言及は無視し、値として残っているものだけを検出する
 if grep -nE '^[^#]*REPLACE_ME_' "$env_config"; then
@@ -49,9 +47,10 @@ if grep -nE '^[^#]*REPLACE_ME_' "$env_config"; then
     exit 1
 fi
 
-{
-    printf '\n# ---- 以下は %s によって %s から結合された環境差分（コミットしない） ----\n' "$(basename "$0")" "$(basename "$env_config")"
-    cat "$env_config"
-} >>"$base_config"
+python3 "$script_dir/merge-remote-config.py" "$base_config" "$env_config" "$env_name" $expected_ref
 
-echo "merged: $(basename "$env_config") -> supabase/config.toml"
+# 結合結果に [remotes.*] が残っていたら config push が拒否するので念のため検査する
+if grep -qE '^\[remotes\.' "$base_config"; then
+    echo "error: 結合後の config.toml に [remotes.*] が残っています" >&2
+    exit 1
+fi
