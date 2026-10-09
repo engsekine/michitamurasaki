@@ -105,7 +105,11 @@ jobs:
                   STG_ALIAS: ${{ secrets.STG_ALIAS_SERVICE_FRONT }}
                   # step 出力は run に直接展開せず env 経由で参照する（式展開によるシェル注入防止）
                   DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-              run: npx --yes vercel alias set "$DEPLOY_URL" "$STG_ALIAS" --token="$VERCEL_TOKEN"
+              run: |
+                  # vercel alias はホスト名のみ受け付ける（"Invalid domain name" で落ちる）。
+                  # Secret に https:// や末尾の / 、改行が混ざっていても動くよう正規化する
+                  alias="${STG_ALIAS#https://}"; alias="${alias#http://}"; alias="${alias%%/*}"; alias="$(echo -n "$alias" | tr -d '[:space:]')"
+                  npx --yes vercel alias set "$DEPLOY_URL" "$alias" --token="$VERCEL_TOKEN"
 
     # ------------------------------------------------------------
     # 3. admin-front → Vercel（service-front と同型・並列実行）
@@ -147,4 +151,8 @@ jobs:
                   STG_ALIAS: ${{ secrets.STG_ALIAS_ADMIN_FRONT }}
                   # step 出力は run に直接展開せず env 経由で参照する（式展開によるシェル注入防止）
                   DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-              run: npx --yes vercel alias set "$DEPLOY_URL" "$STG_ALIAS" --token="$VERCEL_TOKEN"
+              run: |
+                  # vercel alias はホスト名のみ受け付ける（"Invalid domain name" で落ちる）。
+                  # Secret に https:// や末尾の / 、改行が混ざっていても動くよう正規化する
+                  alias="${STG_ALIAS#https://}"; alias="${alias#http://}"; alias="${alias%%/*}"; alias="$(echo -n "$alias" | tr -d '[:space:]')"
+                  npx --yes vercel alias set "$DEPLOY_URL" "$alias" --token="$VERCEL_TOKEN"
