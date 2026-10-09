@@ -35,7 +35,7 @@ jobs:
               with:
                   # version: latest は実行のたびに GitHub API で最新リリースを解決するため、
                   # 未認証のレート制限に達して失敗する。バージョンを固定して API 解決を回避する。
-                  version: 2.107.0
+                  version: 2.120.0
             - name: Supabase ローカルスタックを起動
               run: supabase start
             - name: seed.sql を生成（テストユーザー）

@@ -35,7 +35,8 @@ jobs:
               with:
                   # version: latest は実行のたびに GitHub API で最新リリースを解決するため、
                   # 未認証のレート制限に達して失敗する。バージョンを固定して API 解決を回避する（ci.yml と同方針）
-                  version: 2.107.0
+                  # 2.100〜2.108 は config push が Storage 設定の databasePoolMode 欠落で落ちる（supabase/cli#5726、2.109 で修正）
+                  version: 2.120.0
             - name: Link to Supabase project
               env:
                   SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
