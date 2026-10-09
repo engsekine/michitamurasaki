@@ -29,6 +29,17 @@ jobs:
         env:
             SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
             SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+            SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+            # 以下は config.toml の env(...) 参照を解決するための値（CI には supabase/.env がない）。
+            # config push だけでなく db push も config.toml を読んで検証するため、ステップではなくジョブ全体に置く。
+            # ベースの enabled = "env(SMTP_ENABLED)" が bool として解釈できないとパースが止まるため必ず定義する。
+            # stg / prod の SMTP 実送信はこの値で有効化する（config.<environment>.toml 側では上書きしない。
+            # 部分上書きすると CLI のスキーマ検証が host 等の必須チェックで止まる）
+            SMTP_ENABLED: 'true'
+            RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+            CONTACT_MAIL_FROM: ${{ secrets.CONTACT_MAIL_FROM }}
+            SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ${{ secrets.SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID }}
+            SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: ${{ secrets.SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET }}
         steps:
             - uses: actions/checkout@v4
             - uses: supabase/setup-cli@v1
@@ -38,28 +49,14 @@ jobs:
                   # 2.100〜2.108 は config push が Storage 設定の databasePoolMode 欠落で落ちる（supabase/cli#5726、2.109 で修正）
                   version: 2.120.0
             - name: Link to Supabase project
-              env:
-                  SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
               run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
             # Auth / API / Storage 設定の反映。config.toml（ローカル用ベース）の該当セクションに
             # 環境差分（config.<environment>.toml の [remotes.<environment>.*]）をマージしてから push する。
             # CLI の config push は [remotes.*] ブロックを含む config を拒否するため、追記ではなくキー単位で置き換える。
             # 第 2 引数で差分ファイルの project_id が link 先と一致することを検証する（別環境の差分を誤って push しない）。
-            # 環境変数は config.toml の env(...) 参照を解決するためのもの（CI には supabase/.env がない）。
             - name: Build remote config
-              env:
-                  SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
               run: supabase/scripts/build-remote-config.sh "${{ inputs.environment }}" "$SUPABASE_PROJECT_REF"
             - name: Push config
-              env:
-                  # ベースの enabled = "env(SMTP_ENABLED)" が bool として解釈できないとパースが止まるため必ず定義する。
-                  # stg / prod の SMTP 実送信はこの値で有効化する（config.<environment>.toml 側では上書きしない。
-                  # 部分上書きすると CLI のスキーマ検証が host 等の必須チェックで止まる）
-                  SMTP_ENABLED: 'true'
-                  RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-                  CONTACT_MAIL_FROM: ${{ secrets.CONTACT_MAIL_FROM }}
-                  SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ${{ secrets.SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID }}
-                  SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: ${{ secrets.SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET }}
               run: supabase config push --yes
             - name: Apply migrations
               run: supabase db push
