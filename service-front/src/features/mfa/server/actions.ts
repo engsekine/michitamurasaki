@@ -5,62 +5,82 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/shared/lib/supabase/server';
 import { type ActionResult, actionFailure, actionSuccess } from '@/shared/types/action-result';
 
-/** enroll + 初回 challenge の結果。verify に必要な id を返す */
+/**
+ * 認証アプリに表示される発行者名・要素名。
+ * Supabase は同名の verified 要素が既にあると enroll を拒否するため、
+ * enroll 前に未検証の残骸を解除してから登録する（enrollTotpFactor 参照）。
+ */
+const TOTP_ISSUER = 'ダイビングログ';
+const TOTP_FRIENDLY_NAME = '認証アプリ';
+
+/** enroll の結果。QR コードを読めない場合に備えてシークレットも返す */
 export interface EnrollPayload {
     factorId: string;
-    challengeId: string;
-}
-
-/** ログイン 2 段階目の challenge 結果 */
-export interface ChallengePayload {
-    challengeId: string;
+    /** `data:image/svg+xml;utf-8,...` 形式の QR コード画像（img の src にそのまま使える） */
+    qrCode: string;
+    /** 認証アプリへ手入力するためのシークレット */
+    secret: string;
 }
 
 /** 現在ユーザーの 2 要素認証の状態（設定画面・ログイン 2 段階目で使用） */
 export interface MfaStatus {
-    /** verified な phone 要素があるか（＝2 要素認証が有効） */
+    /** verified な TOTP 要素があるか（＝2 要素認証が有効） */
     enabled: boolean;
-    /** 対象の phone 要素 ID（challenge/verify/disable に使う）。無ければ null */
+    /** 対象の TOTP 要素 ID（verify/disable に使う）。無ければ null */
     factorId: string | null;
 }
 
-/**
- * 電話番号を登録し（enroll）、確認コードを送信する（challenge）（FR-008/009）。
- * verify 前は要素は unverified で、コード確認に成功して初めて有効化される。
- */
-export const enrollPhoneFactor = async (phone: string): Promise<ActionResult<EnrollPayload>> => {
-    const supabase = await createClient();
+const RATE_LIMIT_STATUS = 429;
 
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'phone', phone });
-    if (error || !data) {
-        return actionFailure('電話番号の登録を開始できませんでした。番号（国際形式）をご確認ください');
+const toVerifyFailure = (error: { status?: number | undefined } | null): ActionResult => {
+    if (error?.status === RATE_LIMIT_STATUS) {
+        return actionFailure('試行回数が多すぎます。しばらく時間をおいてからお試しください');
     }
-
-    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: data.id });
-    if (challengeError || !challenge) {
-        return actionFailure('確認コードの送信に失敗しました。時間をおいて再度お試しください');
-    }
-
-    return actionSuccess<EnrollPayload>({ factorId: data.id, challengeId: challenge.id });
+    return actionFailure('確認コードが正しくありません。もう一度お試しください');
 };
 
 /**
- * 登録した電話番号の確認コードを検証し、2 要素認証を有効化する（FR-009）。
- * 誤り・期限切れコードは拒否する（FR-011 相当）。
+ * 認証アプリ（TOTP）の要素を登録し、QR コードとシークレットを返す（FR-008/009）。
+ * verify 前は要素は unverified で、アプリのコード確認に成功して初めて有効化される。
  */
-export const verifyPhoneFactor = async (factorId: string, challengeId: string, code: string): Promise<ActionResult> => {
+export const enrollTotpFactor = async (): Promise<ActionResult<EnrollPayload>> => {
     const supabase = await createClient();
 
-    const { error } = await supabase.auth.mfa.verify({ factorId, challengeId, code });
-    if (error) {
-        return actionFailure('確認コードが正しくありません。もう一度お試しください');
+    /**
+     * 途中離脱で残った未検証要素を先に片付ける。残っていると friendly name 重複で
+     * enroll が 422 になり、ユーザーは二度と設定を始められなくなる
+     */
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+    const staleFactors = (factors?.all ?? []).filter((factor) => factor.status !== 'verified');
+    await Promise.all(staleFactors.map((factor) => supabase.auth.mfa.unenroll({ factorId: factor.id })));
+
+    const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        issuer: TOTP_ISSUER,
+        friendlyName: TOTP_FRIENDLY_NAME,
+    });
+    if (error || !data) {
+        return actionFailure('認証アプリの設定を開始できませんでした。時間をおいて再度お試しください');
     }
+
+    return actionSuccess<EnrollPayload>({ factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret });
+};
+
+/**
+ * 認証アプリに表示されたコードを検証し、2 要素認証を有効化する（FR-009）。
+ * TOTP は SMS と違い送信工程が無いので challenge と verify を一括で行う。
+ */
+export const verifyTotpFactor = async (factorId: string, code: string): Promise<ActionResult> => {
+    const supabase = await createClient();
+
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
+    if (error) return toVerifyFailure(error);
 
     return actionSuccess();
 };
 
 /** 2 要素認証を無効化する（FR-014）。以後のログインで 2 段階目を求めない */
-export const disablePhoneFactor = async (factorId: string): Promise<ActionResult> => {
+export const disableTotpFactor = async (factorId: string): Promise<ActionResult> => {
     const supabase = await createClient();
 
     const { error } = await supabase.auth.mfa.unenroll({ factorId });
@@ -80,45 +100,23 @@ export const getMfaStatus = async (): Promise<MfaStatus> => {
         return { enabled: false, factorId: null };
     }
 
-    const phoneFactors = data.phone ?? [];
-    const verified = phoneFactors.find((factor) => factor.status === 'verified');
+    const verified = (data.totp ?? []).find((factor) => factor.status === 'verified');
     if (verified) {
         return { enabled: true, factorId: verified.id };
     }
 
-    const pending = phoneFactors[0];
-    return { enabled: false, factorId: pending?.id ?? null };
-};
-
-/**
- * ログイン 2 段階目の確認コードを送信する（FR-010）。再送にも使う（FR-012/013）。
- * レート制限時はその旨を返す。
- */
-export const challengeLoginFactor = async (factorId: string): Promise<ActionResult<ChallengePayload>> => {
-    const supabase = await createClient();
-
-    const { data, error } = await supabase.auth.mfa.challenge({ factorId });
-    if (error || !data) {
-        if (error?.status === 429) {
-            return actionFailure('確認コードの再送は、しばらく時間をおいてからお試しください');
-        }
-        return actionFailure('確認コードの送信に失敗しました。時間をおいて再度お試しください');
-    }
-
-    return actionSuccess<ChallengePayload>({ challengeId: data.id });
+    return { enabled: false, factorId: null };
 };
 
 /**
  * ログイン 2 段階目のコードを検証し、成功したら AAL2 に昇格して TOP（`/`）へ進む（FR-010/011）。
- * 誤り・期限切れコードは拒否して再入力させる。
+ * 誤り・期限切れコードは拒否して再入力させる。試行回数はレート制限で保護する（FR-013）。
  */
-export const verifyLogin = async (factorId: string, challengeId: string, code: string): Promise<ActionResult> => {
+export const verifyLogin = async (factorId: string, code: string): Promise<ActionResult> => {
     const supabase = await createClient();
 
-    const { error } = await supabase.auth.mfa.verify({ factorId, challengeId, code });
-    if (error) {
-        return actionFailure('確認コードが正しくありません。もう一度お試しください');
-    }
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
+    if (error) return toVerifyFailure(error);
 
     redirect('/');
 };

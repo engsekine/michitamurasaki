@@ -13,7 +13,7 @@ interface RemoveMfaButtonProps {
 
 /**
  * 対象ユーザーの 2 要素認証を解除する（確認付き）（023 / FR-016）。
- * 電話紛失・番号変更時のリカバリー操作。破壊的操作のため確認ダイアログを挟み、
+ * 認証アプリを入れた端末の紛失・機種変更時のリカバリー操作。破壊的操作のため確認ダイアログを挟み、
  * 成功時は状態を再取得（refresh）、失敗時は inline alert で通知する。
  */
 export const RemoveMfaButton = ({ userId }: RemoveMfaButtonProps) => {
@@ -65,7 +65,7 @@ export const RemoveMfaButton = ({ userId }: RemoveMfaButtonProps) => {
                 open={open}
                 onOpenChange={setOpen}
                 title="2 要素認証を解除"
-                description="このユーザーの 2 要素認証（電話番号）を解除します。解除後はパスワード（または Google）のみでログインできるようになります。よろしいですか？"
+                description="このユーザーの 2 要素認証（認証アプリ）を解除します。解除後はパスワード（または Google）のみでログインできるようになります。よろしいですか？"
                 confirmLabel="解除する"
                 destructive
                 isPending={isPending}

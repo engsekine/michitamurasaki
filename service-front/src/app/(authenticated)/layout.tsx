@@ -40,7 +40,7 @@ export default async function AuthenticatedLayout({
     }
 
     /**
-     * SMS 2 要素認証（023 / US2 / FR-010）。2 要素認証を有効化しているユーザーが
+     * 認証アプリ（TOTP）2 要素認証（023 / US2 / FR-010）。2 要素認証を有効化しているユーザーが
      * 1 段階目（パスワード / Google）だけ通過した状態（AAL1→AAL2 保留）では、
      * 保護ルートに入れず 2 段階目チャレンジへ誘導する。
      * /login/verify は本レイアウト配下ではないためループしない。

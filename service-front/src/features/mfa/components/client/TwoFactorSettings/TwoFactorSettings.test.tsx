@@ -2,9 +2,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 
-const enrollPhoneFactor = vi.fn();
-const verifyPhoneFactor = vi.fn();
-const disablePhoneFactor = vi.fn();
+const enrollTotpFactor = vi.fn();
+const verifyTotpFactor = vi.fn();
+const disableTotpFactor = vi.fn();
 const refresh = vi.fn();
 
 vi.mock('next/navigation', () => ({
@@ -12,57 +12,85 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/features/mfa/server/actions', () => ({
-    enrollPhoneFactor: (...args: unknown[]) => enrollPhoneFactor(...args),
-    verifyPhoneFactor: (...args: unknown[]) => verifyPhoneFactor(...args),
-    disablePhoneFactor: (...args: unknown[]) => disablePhoneFactor(...args),
+    enrollTotpFactor: (...args: unknown[]) => enrollTotpFactor(...args),
+    verifyTotpFactor: (...args: unknown[]) => verifyTotpFactor(...args),
+    disableTotpFactor: (...args: unknown[]) => disableTotpFactor(...args),
 }));
 
 import { TwoFactorSettings } from './TwoFactorSettings';
 
+const ENROLLED = {
+    success: true,
+    factorId: 'factor-1',
+    qrCode: 'data:image/svg+xml;utf-8,<svg/>',
+    secret: 'ABCDEFGHIJKLMNOP',
+};
+
 describe('TwoFactorSettings', () => {
     beforeEach(() => {
-        enrollPhoneFactor.mockReset();
-        verifyPhoneFactor.mockReset();
-        disablePhoneFactor.mockReset();
+        enrollTotpFactor.mockReset();
+        verifyTotpFactor.mockReset();
+        disableTotpFactor.mockReset();
         refresh.mockReset();
     });
 
-    it('有効時は無効化ボタンを表示し、クリックで disablePhoneFactor を呼ぶ', async () => {
-        disablePhoneFactor.mockResolvedValueOnce({ success: true });
+    it('有効時は無効化ボタンを表示し、クリックで disableTotpFactor を呼ぶ', async () => {
+        disableTotpFactor.mockResolvedValueOnce({ success: true });
         const user = userEvent.setup();
         render(<TwoFactorSettings initialEnabled initialFactorId="factor-1" />);
 
         await user.click(screen.getByRole('button', { name: /無効化/ }));
 
-        expect(disablePhoneFactor).toHaveBeenCalledWith('factor-1');
+        expect(disableTotpFactor).toHaveBeenCalledWith('factor-1');
     });
 
-    it('未有効時、不正な電話番号ではエラーを出し enroll を呼ばない', async () => {
+    it('未有効時は設定開始ボタンのみで、QR コードはまだ出さない', () => {
+        render(<TwoFactorSettings initialEnabled={false} initialFactorId={null} />);
+
+        expect(screen.getByRole('button', { name: /認証アプリを設定する/ })).toBeInTheDocument();
+        expect(screen.queryByRole('img')).not.toBeInTheDocument();
+        expect(enrollTotpFactor).not.toHaveBeenCalled();
+    });
+
+    it('設定開始で enroll → QR コードとシークレットを表示し、コード確認で有効化する', async () => {
+        enrollTotpFactor.mockResolvedValueOnce(ENROLLED);
+        verifyTotpFactor.mockResolvedValueOnce({ success: true });
         const user = userEvent.setup();
         render(<TwoFactorSettings initialEnabled={false} initialFactorId={null} />);
 
-        await user.type(screen.getByLabelText('電話番号（国際形式）'), '09012345678');
-        await user.click(screen.getByRole('button', { name: /確認コードを送信する/ }));
+        await user.click(screen.getByRole('button', { name: /認証アプリを設定する/ }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('国際形式');
-        expect(enrollPhoneFactor).not.toHaveBeenCalled();
-    });
+        expect(enrollTotpFactor).toHaveBeenCalled();
+        expect(await screen.findByRole('img', { name: /QR コード/ })).toHaveAttribute('src', ENROLLED.qrCode);
+        expect(screen.getByText(ENROLLED.secret)).toBeInTheDocument();
 
-    it('正しい電話番号で enroll → コード入力欄が出て、verify で有効化する', async () => {
-        enrollPhoneFactor.mockResolvedValueOnce({ success: true, factorId: 'factor-1', challengeId: 'challenge-1' });
-        verifyPhoneFactor.mockResolvedValueOnce({ success: true });
-        const user = userEvent.setup();
-        render(<TwoFactorSettings initialEnabled={false} initialFactorId={null} />);
-
-        await user.type(screen.getByLabelText('電話番号（国際形式）'), '+819012345678');
-        await user.click(screen.getByRole('button', { name: /確認コードを送信する/ }));
-
-        expect(enrollPhoneFactor).toHaveBeenCalledWith('+819012345678');
-        const codeInput = await screen.findByLabelText(/確認コード/);
-        await user.type(codeInput, '123456');
+        await user.type(screen.getByLabelText(/確認コード/), '123456');
         await user.click(screen.getByRole('button', { name: /確認して有効化する/ }));
 
-        expect(verifyPhoneFactor).toHaveBeenCalledWith('factor-1', 'challenge-1', '123456');
+        expect(verifyTotpFactor).toHaveBeenCalledWith('factor-1', '123456');
         expect(refresh).toHaveBeenCalled();
+    });
+
+    it('桁数が不正ならサーバーを呼ばずにエラーを出す', async () => {
+        enrollTotpFactor.mockResolvedValueOnce(ENROLLED);
+        const user = userEvent.setup();
+        render(<TwoFactorSettings initialEnabled={false} initialFactorId={null} />);
+
+        await user.click(screen.getByRole('button', { name: /認証アプリを設定する/ }));
+        await user.type(await screen.findByLabelText(/確認コード/), '12');
+        await user.click(screen.getByRole('button', { name: /確認して有効化する/ }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('6 桁の数字');
+        expect(verifyTotpFactor).not.toHaveBeenCalled();
+    });
+
+    it('enroll 失敗時はエラーを表示する', async () => {
+        enrollTotpFactor.mockResolvedValueOnce({ success: false, error: '認証アプリの設定を開始できませんでした' });
+        const user = userEvent.setup();
+        render(<TwoFactorSettings initialEnabled={false} initialFactorId={null} />);
+
+        await user.click(screen.getByRole('button', { name: /認証アプリを設定する/ }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('認証アプリの設定を開始できませんでした');
     });
 });

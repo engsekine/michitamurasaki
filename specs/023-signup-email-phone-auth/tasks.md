@@ -29,7 +29,7 @@ Web アプリ（モノレポ）: `service-front/src/`、`admin-front/src/`、`su
 
 **Purpose**: 両ストーリーで使う前提の整備
 
-- [X] T001 [P] 新規環境変数を `.env.example` に追記・説明: メールは**既存 `RESEND_API_KEY` を Auth SMTP に再利用**（新規プロバイダ変数は追加せず）、`SUPABASE_AUTH_SMS_TWILIO_ACCOUNT_SID` / `SUPABASE_AUTH_SMS_TWILIO_MESSAGE_SERVICE_SID` / `SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN`（service-front）、admin-front 用 `SUPABASE_SERVICE_ROLE_KEY`
+- [X] T001 [P] 新規環境変数を `.env.example` に追記・説明: メールは**既存 `RESEND_API_KEY` を Auth SMTP に再利用**（新規プロバイダ変数は追加せず）、admin-front 用 `SUPABASE_SERVICE_ROLE_KEY`（Twilio 用変数は 2026-10-09 の TOTP 化で削除）
 - [X] T002 [P] `supabase/templates/` ディレクトリを用意（存在しない場合）し、日本語メールテンプレートの配置場所を確保
 
 ---
@@ -69,16 +69,19 @@ Web アプリ（モノレポ）: `service-front/src/`、`admin-front/src/`、`su
 
 ---
 
-## Phase 4: User Story 2 - ログイン時の SMS 2 要素認証 (Priority: P2)
+## Phase 4: User Story 2 - ログイン時の 2 要素認証 (Priority: P2)
 
-**Goal**: 電話番号を登録して 2 要素認証を有効化し、ログイン時に SMS ワンタイムコードで 2 段階目を必須化する。無効化・管理者による解除（FR-016）も提供する（FR-008〜016）。
+> 2026-10-09: SMS（Twilio）から認証アプリ（TOTP）へ移行済み。以下のタスク記述は当初の SMS 版で、移行後の実体は T014b を参照。
 
-**Independent Test**: 設定画面で電話番号を登録・有効化 → 再ログインで 1 段階目成功後に SMS コード入力を要求され、正しいコードで TOP（`/`）到達。無効化で 2 段階目が消える。管理者はユーザー詳細から要素を解除できる（quickstart シナリオ 2・3）。
+**Goal**: 認証アプリを登録して 2 要素認証を有効化し、ログイン時にアプリのワンタイムコードで 2 段階目を必須化する。無効化・管理者による解除（FR-016）も提供する（FR-008〜016）。
+
+**Independent Test**: 設定画面で認証アプリを登録・有効化 → 再ログインで 1 段階目成功後にコード入力を要求され、正しいコードで TOP（`/`）到達。無効化で 2 段階目が消える。管理者はユーザー詳細から要素を解除できる（quickstart シナリオ 2・3）。
 
 ### Implementation for User Story 2
 
 - [X] T014 [US2] `supabase/config.toml` の `[auth.mfa.phone]` を `enroll_enabled=true` / `verify_enabled=true`、`[auth.sms.twilio]` を `enabled=true` + `account_sid` / `message_service_sid` + `auth_token=env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)` に設定（`[auth.sms] enable_signup=false` は維持）
-- [X] T015 [P] [US2] 電話番号（E.164）・OTP コードの検証スキーマ + テストを `service-front/src/features/mfa/schemas/`（本体 + `*.test.ts` + `index.ts`）に作成
+- [X] T014b [US2] **TOTP 移行（2026-10-09）**: `[auth.sms.twilio]` / `[auth.mfa.phone]` を削除し `[auth.mfa.totp]` を有効化。サーバーアクションを `enrollTotpFactor` / `verifyTotpFactor` / `disableTotpFactor` / `getMfaStatus` / `verifyLogin`（`challengeAndVerify`）に置き換え、`TwoFactorSettings` を QR コード表示型に、`MfaChallengeForm`（service-front / admin-front）を送信・再送なしのコード入力のみに変更。`_deploy.yml` / `.env.example` / README / ENV_SETTINGS / DEPLOY_STG から Twilio 変数を削除
+- [X] T015 [P] [US2] OTP コードの検証スキーマ + テストを `service-front/src/features/mfa/schemas/`（本体 + `*.test.ts` + `index.ts`）に作成（電話番号スキーマは TOTP 化で削除）
 - [X] T016 [P] [US2] MFA 全サーバーアクション（`enrollPhoneFactor` / `verifyPhoneFactor` / `disablePhoneFactor` / `getMfaStatus` / `challengeLoginFactor` / `verifyLogin`）の Vitest テストを `service-front/src/features/mfa/server/actions.test.ts` に作成（誤コード/期限切れ拒否・レート制限含む）。実装前に FAIL させる
 - [X] T017 [US2] MFA サーバーアクションを `service-front/src/features/mfa/server/actions.ts` に実装（契約: `contracts/service-front-mfa.md`。`supabase.auth.mfa.enroll/challenge/verify/unenroll/listFactors`。T015・T016 に依存）
 - [X] T018 [P] [US2] `TwoFactorSettings` の Vitest + a11y テスト（`TwoFactorSettings.test.tsx`）と Storybook story（`TwoFactorSettings.stories.tsx`）を `service-front/src/features/mfa/components/client/TwoFactorSettings/` に作成（有効化/無効化フロー・ラベル関連付け・`role="alert"`）。`/generate-with-tests` を利用可。Vitest/a11y は実装前に FAIL させる（Constitution III）
@@ -169,7 +172,7 @@ Task: "T031 RemoveMfaButton tests (admin-front)"
 
 1. Setup + Foundational → 基盤完成
 2. US1（メール本番配信）→ 検証 → デプロイ（MVP）
-3. US2（SMS 2FA + 管理者解除）→ 検証 → デプロイ
+3. US2（2FA + 管理者解除）→ 検証 → デプロイ
 4. Polish（テンプレート整備・全体検証）
 
 ### Parallel Team Strategy
@@ -181,7 +184,7 @@ Task: "T031 RemoveMfaButton tests (admin-front)"
 ## Notes
 
 - [P] = 別ファイル・依存なし。[Story] ラベルはトレーサビリティ用
-- `supabase/config.toml` は US1（メール）と US2（MFA/SMS）で別セクションを編集するが同一ファイルのため直列
+- `supabase/config.toml` は US1（メール）と US2（MFA）で別セクションを編集するが同一ファイルのため直列
 - service_role キーはサーバー専用・`requireAdmin()` ガード内限定・監査必須（Constitution IV）
 - 2FA 未有効化ユーザーの体験は不変（FR-015）を各テストで担保
 - 各タスク/論理単位ごとにコミット（Conventional Commits）

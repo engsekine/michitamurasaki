@@ -16,7 +16,7 @@ export const metadata = generatePageMetadata(
 );
 
 /**
- * ログイン 2 段階目（SMS 2 要素認証）の確認ページ（023 / US2 / FR-010）。
+ * ログイン 2 段階目（認証アプリ / TOTP 2 要素認証）の確認ページ（023 / US2 / FR-010）。
  * proxy の AUTH_ROUTES（完全一致）に含まれないため、認証済み（AAL1）でも到達できる。
  * 未認証・2 段階目不要（AAL2 済み or 未有効化）の場合は適切に振り分ける。
  */

@@ -26,7 +26,8 @@ README のシークレット一覧表（FR-013）の原本。環境モデルの�
 | `RESEND_API_KEY` | `supabase config push` が `config.toml` の `env(...)` を解決するため（認証メール SMTP） | Resend の API キー | 両 Environment |
 | `CONTACT_MAIL_FROM` | 同上（認証メールの送信元） | Resend で検証済みドメインのアドレス | 両 Environment |
 | `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET` | 同上（Google ログイン） | Google Cloud Console の OAuth 2.0 クライアント | 両 Environment（Google ログインを使う場合） |
-| `SUPABASE_AUTH_SMS_TWILIO_ACCOUNT_SID` / `_MESSAGE_SERVICE_SID` / `_AUTH_TOKEN` | 同上（SMS 2 要素認証） | Twilio Console | 両 Environment（SMS 2FA を使う場合） |
+
+> 2 要素認証は認証アプリ（TOTP）方式に移行済み（2026-10-09）。SMS / Twilio 用の Secret は不要。
 
 > `supabase config push` 用の変数はローカルの `supabase/.env` と同名。CI には `.env` が無いため Environment secrets からワークフローの `env:` で注入する（`SMTP_ENABLED` はワークフロー内で `'true'` 固定）。
 
