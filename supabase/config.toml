@@ -255,7 +255,8 @@ otp_expiry = 3600
 # サインアップ確認・パスワードリセット・メール変更などの全認証メールを実受信箱へ届ける（FR-001/007a）。
 # 有効/無効は supabase/.env の SMTP_ENABLED で切り替える（未設定だと起動エラーになるので必ず定義する）。
 # ローカルは false 推奨（Mailpit がメールを捕捉。RESEND_API_KEY 不要）。
-# stg / prod は config.staging.toml / config.production.toml 側で enabled = true に固定し、RESEND_API_KEY は CI の Secret で注入する。
+# stg / prod はデプロイワークフローが SMTP_ENABLED='true' を渡して有効化し、RESEND_API_KEY は CI の Secret で注入する
+# （config.<env>.toml 側で smtp を部分上書きすると CLI のスキーマ検証が host 等の必須チェックで止まるため書かない）。
 [auth.email.smtp]
 enabled = "env(SMTP_ENABLED)"
 host = "smtp.resend.com"

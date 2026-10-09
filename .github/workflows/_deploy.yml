@@ -49,7 +49,8 @@ jobs:
             - name: Push config
               env:
                   # ベースの enabled = "env(SMTP_ENABLED)" が bool として解釈できないとパースが止まるため必ず定義する。
-                  # 実際の ON/OFF は config.<environment>.toml 側の enabled = true が優先する
+                  # stg / prod の SMTP 実送信はこの値で有効化する（config.<environment>.toml 側では上書きしない。
+                  # 部分上書きすると CLI のスキーマ検証が host 等の必須チェックで止まる）
                   SMTP_ENABLED: 'true'
                   RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
                   CONTACT_MAIL_FROM: ${{ secrets.CONTACT_MAIL_FROM }}

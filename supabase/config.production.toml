@@ -28,9 +28,9 @@ additional_redirect_urls = [
 # 利用者数に応じて見直す。無制限にはしない（メール爆撃対策 / specs/023）
 email_sent = 100
 
-[remotes.production.auth.email.smtp]
-# 本番は常に Resend で実送信する。RESEND_API_KEY / CONTACT_MAIL_FROM は `production` Environment secret で注入する
-enabled = true
+# SMTP（Resend）の実送信はベースの enabled = "env(SMTP_ENABLED)" を CI が SMTP_ENABLED='true' で解決して有効化する。
+# RESEND_API_KEY / CONTACT_MAIL_FROM は `production` Environment secret で注入する。
+# [remotes.production.auth.email.smtp] の部分上書きは CLI のスキーマ検証（enabled なら host 等が必須）で止まるため書かない。
 
 [remotes.production.auth.external.google]
 # 本番では必ず nonce チェックを有効にする（セキュリティ監査 2026-07-02 / specs/016-google-login）

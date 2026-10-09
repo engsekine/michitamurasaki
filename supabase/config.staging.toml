@@ -36,10 +36,9 @@ additional_redirect_urls = [
 # ベースの 2 通/時はローカル（Mailpit）前提の値。stg は Resend 経由で動作確認するため引き上げる
 email_sent = 30
 
-[remotes.staging.auth.email.smtp]
-# stg は常に Resend で実送信する（ベースは env(SMTP_ENABLED) でローカルの ON/OFF を切り替えている）。
-# host / port / user / pass / sender_name はベースから継承。pass の RESEND_API_KEY は CI の Secret で注入する。
-enabled = true
+# SMTP（Resend）の実送信はベースの enabled = "env(SMTP_ENABLED)" を CI が SMTP_ENABLED='true' で解決して有効化する。
+# ここで [remotes.staging.auth.email.smtp] enabled = true と部分上書きすると、CLI のスキーマ検証が
+# 上書きブロック単体に「enabled なら host 等が必須」を適用してデプロイが止まるため、このファイルには書かない。
 
 [remotes.staging.auth.external.google]
 # ベースの skip_nonce_check = true はローカルで Google ログインするための回避策。
